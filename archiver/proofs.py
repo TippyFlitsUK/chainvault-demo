@@ -19,6 +19,8 @@ _load_env_file()
 
 RPC = os.environ.get("CV_RPC_URL", "https://api.calibration.node.glif.io/rpc/v1")
 PDP_VERIFIER = os.environ.get("CV_PDP_VERIFIER", "0x85e366Cf9DD2c0aE37E963d9556F5f4718d6417C")
+WARM_STORAGE = os.environ.get("CV_WARM_STORAGE", "0x02925630df557F957f70E112bA06e50965417CA0")  # FilecoinWarmStorageService, calibnet
+GET_SERVICE_PRICE = "0x5482bdf9"  # getServicePrice() -> (pricePerTiBPerMonthNoCDN, ...) in USDFC, 18 decimals
 EPOCH_SECONDS = 30
 SEL = {  # function selectors, PDPVerifier ABI from @filoz/synapse-core
     "dataSetLive": "0xca759f27",
@@ -76,6 +78,11 @@ def main():
     prev = json.loads((workdir / "proofs.json").read_text()) if (workdir / "proofs.json").exists() else {"data_sets": {}}
     head = u256(rpc("eth_blockNumber", []))
     out = {"network": "calibration", "pdp_verifier": PDP_VERIFIER, "head_epoch": head, "head_time": now(), "data_sets": {}}
+    try:
+        raw = rpc("eth_call", [{"to": WARM_STORAGE, "data": GET_SERVICE_PRICE}, "latest"])
+        out["pricing"] = {"price_per_tib_month_usdfc": int(raw[2:66], 16) / 1e18, "source": WARM_STORAGE, "checked_at": now()}
+    except Exception as e:
+        out["pricing"] = prev.get("pricing") or {"error": str(e)}
     for set_id, info in sorted(data_sets_in(state).items()):
         try:
             live = u256(call("dataSetLive", set_id)) == 1

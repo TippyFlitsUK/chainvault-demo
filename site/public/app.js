@@ -30,6 +30,14 @@ function render() {
   $('c-last').textContent = t.latest_proof_seconds_ago != null ? fmtDur(t.latest_proof_seconds_ago) + ' ago' : '–';
   $('c-sets').textContent = t.live != null ? `${t.live} / ${t.data_sets}` : '–';
   $('c-height').textContent = done.length ? done[0].height.toLocaleString() : '–';
+  const price = proofs?.pricing?.price_per_tib_month_usdfc;
+  if (price && done.length) {
+    const s0 = done[0];
+    const copies = s0.parts.length ? s0.parts.reduce((a, p) => a + (p.copies || []).length, 0) / s0.parts.length : 1;
+    const perMonth = (s0.size * copies / 1099511627776) * price;
+    $('c-cost').textContent = `${perMonth.toFixed(3)} USDFC / month`;
+    $('c-cost').title = `${price} USDFC per TiB per month on-chain (Warm Storage), ${fmtBytes(s0.size)} × ${copies.toFixed(0)} copies`;
+  } else { $('c-cost').textContent = '–'; }
   $('verifier').textContent = proofs?.pdp_verifier || '';
   $('refreshed').textContent = ago(state.updated_at);
   const headAge = proofs?.head_time ? (Date.now() - new Date(proofs.head_time).getTime())/1000 : Infinity;
@@ -53,7 +61,7 @@ function render() {
         <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
       <div class="kv">
         <div class="k">source</div><div><a href="${s.source_url}">${s.name}</a></div>
-        <div class="k">sha256</div><div><code class="cid">${s.sha256 || '–'}</code>${s.verified_at ? ' <span class="ok small">✓ verified against publisher</span>' : ''}</div>
+        <div class="k">sha256</div><div><code class="cid">${s.sha256 || '–'}</code>${s.verified_at ? ` <span class="ok small">✓ matches <a href="${s.source_sha256_url}">Forest's published checksum</a></span>` : ''}</div>
         <div class="k">manifest</div><div>${m ? `<code class="cid">${m.root_cid}</code> <a href="${gw}">gateway</a> · <a href="/api/manifest?name=${encodeURIComponent(s.name)}">json</a>` : '–'}</div>
         ${s.error ? `<div class="k">error</div><div class="bad">${s.error}</div>` : ''}
       </div>
