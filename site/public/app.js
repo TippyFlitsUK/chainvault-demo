@@ -89,7 +89,8 @@ function render() {
     .replace(/(https:\/\/[^\s]+)/g, '<span class="url">$1</span>');
   $('oneliner').innerHTML = latest
     ? `<div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd1)}</pre><button class="copy" data-cmd="${esc(cmd1)}">copy</button></div>
-       <div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd2)} <span class="cm"># optional: import into a Forest node</span></pre><button class="copy" data-cmd="${esc(cmd2)}">copy</button></div>`
+       <div class="cmdnote">then, optionally, import it into a Forest node:</div>
+       <div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd2)}</pre><button class="copy" data-cmd="${esc(cmd2)}">copy</button></div>`
     : '<span class="muted small">available once the first snapshot is archived</span>';
   for (const b of $('oneliner').querySelectorAll('.copy')) b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.cmd); b.textContent = 'copied'; setTimeout(() => { b.textContent = 'copy'; }, 1500); } catch { b.textContent = 'select & copy'; } };
 }

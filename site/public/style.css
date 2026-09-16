@@ -61,5 +61,5 @@ button.small-btn { font-size:12px; padding:3px 10px; margin-left:10px; vertical-
 .cmdbox .cmdtext .kw { color:var(--accent2) } .cmdbox .cmdtext .flag { color:#b392f0 } .cmdbox .cmdtext .url { color:#79c0ff } .cmdbox .cmdtext .cm { color:var(--muted) }
 .cmdbox .copy { background:transparent; color:var(--muted); border:1px solid var(--line); padding:3px 10px; font-size:12px; font-weight:500; flex:0 0 auto }
 .cmdbox .copy:hover { color:var(--fg) }
-.cmdbox .cmdline + .cmdline { margin-top:8px }
+.cmdbox .cmdnote { color:var(--muted); font-size:12px; margin:12px 0 4px }
 footer { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; margin-top:18px; flex-wrap:wrap; gap:8px }
