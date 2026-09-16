@@ -15,6 +15,7 @@ module.exports = {
       CV_DATA: fileEnv.CV_WORKDIR || '/home/tippyflits/chainvault',
       CV_REHYDRATE: path.join(__dirname, '..', 'archiver', 'rehydrate.py'),
       CV_REHYDRATE_TOKEN: fileEnv.CV_REHYDRATE_TOKEN || '',
+      CV_REHYDRATE_PROVIDER: fileEnv.CV_REHYDRATE_PROVIDER || '',
       PATH: fileEnv.PATH || process.env.PATH,
     },
     max_memory_restart: '300M',

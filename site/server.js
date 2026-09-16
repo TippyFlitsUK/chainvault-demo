@@ -9,6 +9,7 @@ const DATA = process.env.CV_DATA || path.join(process.env.HOME, 'chainvault');
 const PUBLIC = path.join(__dirname, 'public');
 const REHYDRATE = process.env.CV_REHYDRATE || path.join(__dirname, '..', 'archiver', 'rehydrate.py');
 const REHYDRATE_TOKEN = process.env.CV_REHYDRATE_TOKEN || '';
+const REHYDRATE_PROVIDER = process.env.CV_REHYDRATE_PROVIDER || '';
 const REHYDRATE_LOG = path.join(DATA, 'rehydrate.log');
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -40,7 +41,8 @@ function startRehydrate(req, res) {
   if (pid) return sendJson(res, 409, { error: 'already running', pid });
   fs.mkdirSync(DATA, { recursive: true });
   const out = fs.openSync(REHYDRATE_LOG, 'w');
-  const child = spawn('python3', [REHYDRATE, '--workdir', DATA, '--latest'], { stdio: ['ignore', out, out], env: process.env, detached: true });
+  const args = [REHYDRATE, '--workdir', DATA, '--latest', ...(REHYDRATE_PROVIDER ? ['--provider-id', REHYDRATE_PROVIDER] : [])];
+  const child = spawn('python3', args, { stdio: ['ignore', out, out], env: process.env, detached: true });
   fs.closeSync(out);
   fs.writeFileSync(PIDFILE, String(child.pid));
   child.unref();
@@ -68,7 +70,7 @@ http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/state') return sendJson(res, 200, readJson(path.join(DATA, 'state.json'), { snapshots: [] }));
   if (url.pathname === '/api/proofs') return sendJson(res, 200, readJson(path.join(DATA, 'proofs.json'), { data_sets: {} }));
-  if (url.pathname === '/api/providers') return sendJson(res, 200, readJson(path.join(DATA, 'providers.json'), { providers: [] }));
+  if (url.pathname === '/api/providers') return sendJson(res, 200, { ...readJson(path.join(DATA, 'providers.json'), { providers: [] }), preferred: REHYDRATE_PROVIDER ? parseInt(REHYDRATE_PROVIDER, 10) : null });
   if (url.pathname === '/api/manifest') {
     const name = url.searchParams.get('name') || '';
     if (!/^[A-Za-z0-9_.\-]+$/.test(name)) return sendJson(res, 400, { error: 'bad name' });

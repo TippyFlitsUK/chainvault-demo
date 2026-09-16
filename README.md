@@ -34,6 +34,7 @@ python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python
 - `CV_KEEP_ONCHAIN` (default 6): after each archive, payload pieces of older snapshots are removed with `filecoin-pin rm`; their manifests stay on Filecoin so the chain of manifests is complete. Forest publishes a calibnet snapshot every ~2 hours, so 6 keeps about 12 hours (~110 GB per copy).
 - `CV_MIN_INTERVAL_EPOCHS` (default 0): archive only when the newest snapshot is at least this many epochs past the last archived one (2880 = daily).
 - `CV_KEEP_LOCAL` (default 1): downloaded files kept on disk.
+- `CV_REHYDRATE_PROVIDER`: provider ID the site's rehydration button and one-liner prefer; other copies are only used on failure.
 - `CV_PARALLEL` (default 4): parts uploaded concurrently; each filecoin-pin process holds one part in memory (~0.5 GB).
 
 ## Deploy

@@ -4,12 +4,12 @@ const fmtDur = (s) => { if (s == null) return '–'; if (s < 0) return `overdue 
 const short = (c) => c ? `${c.slice(0, 10)}…${c.slice(-6)}` : '–';
 const ago = (iso) => iso ? fmtDur((Date.now() - new Date(iso).getTime())/1000) + ' ago' : '–';
 
-let providers = {}, proofs = null, state = null;
+let providers = {}, proofs = null, state = null, preferred = null;
 
 async function load() {
   const [s, p, pr] = await Promise.all([
     fetch('/api/state').then(r => r.json()), fetch('/api/proofs').then(r => r.json()), fetch('/api/providers').then(r => r.json())]);
-  state = s; proofs = p; providers = Object.fromEntries((pr.providers || []).map(x => [x.id, x]));
+  state = s; proofs = p; providers = Object.fromEntries((pr.providers || []).map(x => [x.id, x])); preferred = pr.preferred;
   render();
 }
 
@@ -72,7 +72,7 @@ function render() {
   $('chain-view').innerHTML = chain.length ? `<div class="chainlist">${chain.map((s, i) => `<div class="link"><b>height ${s.height.toLocaleString()}</b><br><code class="cid">${s.manifest.root_cid}</code><br><span class="muted">parent: ${s.manifest.parent_manifest_cid ? short(s.manifest.parent_manifest_cid) : 'genesis of this archive'}</span></div>${i < chain.length - 1 ? '<div class="arrow">↓ parent_manifest_cid</div>' : ''}`).join('')}</div>` : '<div class="muted small">Nothing yet.</div>';
 
   const latest = chain[0];
-  const anyProv = latest && Object.values(providers)[0];
+  const anyProv = latest && (providers[preferred] || Object.values(providers)[0]);
   $('oneliner').textContent = latest && anyProv
     ? `curl -sO ${location.origin}/rehydrate.py\npython3 rehydrate.py --manifest-url ${location.origin}/api/manifest?name=${latest.name} --provider-url ${anyProv.service_url} --provider-id ${anyProv.id} --out ./${latest.name}\n# then: forest --chain calibnet --import-snapshot ./${latest.name}`
     : 'available once the first snapshot is archived';
