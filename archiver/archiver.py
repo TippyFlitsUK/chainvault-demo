@@ -8,6 +8,19 @@ import argparse, fcntl, hashlib, json, os, re, shutil, subprocess, sys, time, ur
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _load_env_file():
+    """cron and PM2 source deploy/chainvault.env; make the archiver self-sufficient when they don't export it."""
+    p = Path(os.environ.get("CV_ENV_FILE", Path(__file__).resolve().parent.parent / "deploy" / "chainvault.env"))
+    if p.exists():
+        for line in p.read_text().splitlines():
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+
+_load_env_file()
+
 ARCHIVE = os.environ.get("CV_ARCHIVE_URL", "https://forest-archive.chainsafe.dev")
 CHAIN = os.environ.get("CV_CHAIN", "calibnet")
 NETWORK = os.environ.get("CV_NETWORK", "calibration")

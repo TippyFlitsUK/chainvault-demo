@@ -16,7 +16,7 @@ Node 22+, Python 3.10+, curl, `filecoin-pin` 2.x installed globally, `npx` reach
 ## First-time setup (on the box that runs the archiver)
 
 ```bash
-. deploy/chainvault.env && filecoin-pin payments setup --auto --network calibration && filecoin-pin balance --network calibration
+set -a && . deploy/chainvault.env && set +a && filecoin-pin payments setup --auto --network calibration && filecoin-pin balance --network calibration
 ```
 
 Then copy `deploy/chainvault.env.example` to `deploy/chainvault.env` (git-ignored, mode 600), add the calibnet wallet `PRIVATE_KEY`, set `CV_PROVIDERS` to the provider IDs you want (calibration: 9 = ezpdpz-calib, 2 = ezpdpz-calib2, 4 = infrafolio-calib) and `CV_COPIES` to match.
@@ -24,7 +24,7 @@ Then copy `deploy/chainvault.env.example` to `deploy/chainvault.env` (git-ignore
 ## Run once by hand
 
 ```bash
-. deploy/chainvault.env && python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python3 archiver/proofs.py
+python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python3 archiver/proofs.py
 ```
 
 `--dry-run` downloads, verifies and splits without uploading.
