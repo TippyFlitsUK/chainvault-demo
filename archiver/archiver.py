@@ -194,6 +194,8 @@ def archive_one(item, workdir, state, dry_run=False):
     save_state(workdir / "state.json", state)
 
     if dry_run:
+        rec["status"] = "dry-run"
+        save_state(workdir / "state.json", state)
         log(f"dry run: would upload {len(parts)} parts")
         return rec
 
