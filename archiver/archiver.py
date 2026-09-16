@@ -261,38 +261,21 @@ def archive_one(item, workdir, state, dry_run=False):
 
 
 def prune_local(workdir, state):
+    """Keep local files only for the newest KEEP_LOCAL completed snapshots and for a run still in progress."""
     done = sorted([s for s in state["snapshots"] if s["status"] in ("done", "pruned")], key=lambda s: s["height"])
-    for s in done[:-KEEP_LOCAL] if KEEP_LOCAL > 0 else done:
-        for p in (workdir / "downloads" / s["name"], workdir / "parts" / s["name"]):
-            if p.exists():
-                log(f"removing local {p}")
-                shutil.rmtree(p) if p.is_dir() else p.unlink()
-    for s in done[-KEEP_LOCAL:] if KEEP_LOCAL > 0 else []:
-        p = workdir / "parts" / s["name"]
-        if p.exists():
-            shutil.rmtree(p)
-
-
-def prune_onchain(state):
-    """Remove snapshot payload pieces beyond the newest KEEP_ONCHAIN archived snapshots. Manifests stay."""
-    if KEEP_ONCHAIN <= 0:
-        return
-    done = sorted([s for s in state["snapshots"] if s["status"] == "done"], key=lambda s: s["height"])
-    for s in done[:-KEEP_ONCHAIN]:
-        log(f"pruning on-chain pieces for {s['name']} (keeping newest {KEEP_ONCHAIN})")
-        failed = False
-        for part in s["parts"]:
-            for c in part.get("copies", []):
-                if c.get("removed"):
-                    continue
-                try:
-                    run_pin(["rm", "--network", NETWORK, "--data-set-id", str(c["data_set_id"]), "--piece", part["piece_cid"]])
-                    c["removed"] = True; c["removed_at"] = now()
-                except Exception as e:
-                    failed = True
-                    log(f"prune failed for piece {part['piece_cid']} in set {c.get('data_set_id')}: {e}")
-        if not failed:
-            s["status"] = "pruned"; s["pruned_at"] = now()
+    keep_download = {s["name"] for s in (done[-KEEP_LOCAL:] if KEEP_LOCAL > 0 else [])}
+    in_progress = {s["name"] for s in state["snapshots"] if s["status"] in ("downloading", "splitting", "uploading")}
+    for s in state["snapshots"]:
+        dl = workdir / "downloads" / s["name"]
+        parts = workdir / "parts" / s["name"]
+        if s["name"] in in_progress:
+            continue
+        if parts.exists():
+            log(f"removing local {parts}")
+            shutil.rmtree(parts)
+        if dl.exists() and s["name"] not in keep_download:
+            log(f"removing local {dl}")
+            dl.unlink()
 
 
 def main():
