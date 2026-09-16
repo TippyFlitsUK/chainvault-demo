@@ -114,13 +114,17 @@ def split_file(src, parts_dir, chunk):
 def run_pin(args):
     cmd = [FILECOIN_PIN] + args
     log("$ " + " ".join(cmd))
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    out = r.stdout + r.stderr
-    for line in out.splitlines():
-        print("    " + line, flush=True)
-    if r.returncode != 0:
-        raise RuntimeError(f"filecoin-pin exited {r.returncode}")
-    return out
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    lines = []
+    for line in p.stdout:
+        line = line.rstrip("\n")
+        if line.strip():
+            print("    " + line, flush=True)
+        lines.append(line)
+    p.wait()
+    if p.returncode != 0:
+        raise RuntimeError(f"filecoin-pin exited {p.returncode}")
+    return "\n".join(lines)
 
 
 def parse_add_output(out):
