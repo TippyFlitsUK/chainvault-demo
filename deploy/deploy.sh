@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sync the project from mission-control to the Hetzner box. Does NOT start anything.
+# Sync the project to the deploy target. Does NOT start anything.
 set -euo pipefail
 HOST=${HOST:?set HOST to the deploy target, e.g. HOST=user@host}
 rsync -av --delete --exclude .git --exclude data/ "$(dirname "$0")/.." "$HOST:~/chainvault-demo/"
