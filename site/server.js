@@ -40,7 +40,7 @@ function streamLog(req, res) {
   let pos = 0;
   const send = () => {
     let st; try { st = fs.statSync(REHYDRATE_LOG); } catch { return; }
-    if (st.size < pos) pos = 0;
+    if (st.size < pos) { pos = 0; res.write('event: reset\ndata: {}\n\n'); }
     if (st.size === pos) return;
     const fd = fs.openSync(REHYDRATE_LOG, 'r');
     const buf = Buffer.alloc(st.size - pos);

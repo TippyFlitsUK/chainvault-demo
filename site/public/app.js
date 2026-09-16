@@ -82,6 +82,7 @@ function stream() {
   const es = new EventSource('/api/rehydrate/stream');
   const log = $('log'); let first = true;
   es.onmessage = (e) => { if (first) { log.textContent = ''; first = false; } log.textContent += JSON.parse(e.data) + '\n'; log.scrollTop = log.scrollHeight; };
+  es.addEventListener('reset', () => { log.textContent = ''; first = false; });
   es.onerror = () => { $('runstatus').textContent = 'stream disconnected, retrying'; };
 }
 
@@ -92,6 +93,7 @@ $('run').onclick = async () => {
   $('runstatus').textContent = r.ok ? `running (pid ${j.pid})` : (j.error || 'failed');
   $('log').textContent = ''; setTimeout(() => { $('run').disabled = false; }, 3000);
 };
+$('clear').onclick = () => { $('log').textContent = ''; $('runstatus').textContent = ''; };
 
 load().catch(e => { $('livetext').textContent = 'load failed: ' + e.message; });
 setInterval(() => load().catch(() => {}), 30000);
