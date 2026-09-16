@@ -3,7 +3,8 @@
 
 Every step logs one line; the demo site streams this log live.
 """
-import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile, time, urllib.request
+import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -97,6 +98,7 @@ def main():
     ap.add_argument("--forest-bin", default=os.environ.get("CV_FOREST_BIN"))
     ap.add_argument("--forest-args", default=os.environ.get("CV_FOREST_ARGS", "--chain calibnet --halt-after-import"))
     ap.add_argument("--keep-parts", action="store_true")
+    ap.add_argument("--parallel", type=int, default=int(os.environ.get("CV_PARALLEL", "4")), help="parts fetched concurrently, spread across providers")
     a = ap.parse_args()
     workdir = Path(a.workdir)
 
@@ -110,35 +112,51 @@ def main():
     out = Path(a.out) if a.out else workdir / "rehydrated" / name
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="chainvault-rehydrate-", dir=str(out.parent)))
+    lock = threading.Lock()
+    pool_urls = [pid for pid in urls if any(pid == c.get("provider_id") for part in m["parts"] for c in part.get("copies", []))]
+    log(f"fetching {len(m['parts'])} parts, {a.parallel} at a time, across providers {pool_urls}")
+
+    def fetch_part(part):
+        n = f"{part['index']+1}/{len(m['parts'])}"
+        copies = part.get("copies", [])
+        # rotate the starting provider per part so consecutive parts hit different providers
+        order = sorted(copies, key=lambda c: 0 if c.get("provider_id") == a.provider_id else 1)
+        if not a.provider_id and len(order) > 1:
+            k = part["index"] % len(order)
+            order = order[k:] + order[:k]
+        cands = [(c["provider_id"], urls.get(c["provider_id"])) for c in order if urls.get(c.get("provider_id"))]
+        if not cands:
+            raise RuntimeError(f"no known provider URL for part {part['index']} (copies {copies})")
+        for pid, base in cands:
+            car = tmp / f"part{part['index']:03d}.car"
+            with lock:
+                log(f"part {n}: GET {base}/piece/{part['piece_cid']} (provider {pid})")
+            try:
+                t0 = time.time()
+                subprocess.run(["curl", "-sS", "-L", "-A", UA, "--retry", "3", "-o", str(car), f"{base.rstrip('/')}/piece/{part['piece_cid']}"], check=True)
+                size = car.stat().st_size; dt = time.time() - t0
+                f = unpack_car(car, tmp / f"part{part['index']:03d}")
+                h = sha256_file(f)
+                if h != part["sha256"]:
+                    raise RuntimeError(f"sha256 mismatch: {h}")
+                with lock:
+                    log(f"part {n}: {size/1e6:.0f} MB from provider {pid} in {dt:.0f}s ({size/1e6/max(dt,0.01):.1f} MB/s), sha256 OK {h[:16]}…")
+                car.unlink(missing_ok=True)
+                return part["index"], f
+            except Exception as e:
+                with lock:
+                    log(f"part {n}: provider {pid} failed: {e}")
+        raise RuntimeError(f"all providers failed for part {part['index']}")
+
     try:
+        with ThreadPoolExecutor(max_workers=max(1, a.parallel)) as pool:
+            results = list(pool.map(fetch_part, m["parts"]))
+        files = dict(results)
+        log("assembling parts in order")
         with open(out, "wb") as sink:
             for part in m["parts"]:
-                copies = part.get("copies", [])
-                order = sorted(copies, key=lambda c: 0 if c.get("provider_id") == a.provider_id else 1)
-                cands = [(c["provider_id"], urls.get(c["provider_id"])) for c in order if urls.get(c.get("provider_id"))]
-                if not cands:
-                    raise RuntimeError(f"no known provider URL for part {part['index']} (copies {copies})")
-                got = None
-                for pid, base in cands:
-                    car = tmp / f"part{part['index']:03d}.car"
-                    log(f"part {part['index']+1}/{len(m['parts'])}: GET {base}/piece/{part['piece_cid']} (provider {pid})")
-                    try:
-                        fetch(f"{base.rstrip('/')}/piece/{part['piece_cid']}", car)
-                        f = unpack_car(car, tmp / f"part{part['index']:03d}")
-                        h = sha256_file(f)
-                        if h != part["sha256"]:
-                            raise RuntimeError(f"sha256 mismatch on part {part['index']}: {h}")
-                        log(f"  sha256 OK {h[:16]}…")
-                        got = f
-                        break
-                    except Exception as e:
-                        log(f"  provider {pid} failed: {e}")
-                if got is None:
-                    raise RuntimeError(f"all providers failed for part {part['index']}")
-                with open(got, "rb") as src:
+                with open(files[part["index"]], "rb") as src:
                     shutil.copyfileobj(src, sink, 1 << 22)
-                if not a.keep_parts:
-                    car.unlink(missing_ok=True); shutil.rmtree(tmp / f"part{part['index']:03d}", ignore_errors=True)
         log("verifying full snapshot sha256")
         h = sha256_file(out)
         if h != m["sha256"]:
