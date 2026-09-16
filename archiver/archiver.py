@@ -167,6 +167,8 @@ def pin_add(path, metadata):
 
 def archive_one(item, workdir, state, dry_run=False):
     name, height, date = parse_name(item["url"])
+    previous = next((s for s in state["snapshots"] if s["name"] == name), None)
+    previous_parts = {p["sha256"]: p for p in (previous or {}).get("parts", []) if p.get("sha256")}
     rec = {
         "name": name, "chain": CHAIN, "height": height, "date": date,
         "source_url": item["url"], "source_sha256_url": item["sha256url"],
@@ -192,6 +194,11 @@ def archive_one(item, workdir, state, dry_run=False):
 
     parts = split_file(dl, workdir / "parts" / name, CHUNK)
     rec["parts"] = [{k: v for k, v in p.items() if k != "file"} for p in parts]
+    for prec in rec["parts"]:  # resume: reuse pieces already uploaded for identical part bytes
+        old = previous_parts.get(prec["sha256"])
+        if old and old.get("piece_cid"):
+            prec.update({k: old[k] for k in ("root_cid", "piece_cid", "copies", "uploaded_at") if k in old})
+            log(f"part {prec['index']} already on Filecoin as {old['piece_cid']}, skipping upload")
     rec["status"] = "uploading"
     save_state(workdir / "state.json", state)
 
