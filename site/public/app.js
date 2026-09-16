@@ -80,11 +80,27 @@ function render() {
 
 let logLines = [];
 function clearedMarker() { try { return JSON.parse(localStorage.getItem('cv_cleared') || 'null'); } catch { return null; } }
+const esc = (s) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
+function logClass(line) {
+  if (/MISMATCH|Traceback|RuntimeError|Error|ERROR|failed|exited [1-9]/.test(line)) return 'l-bad';
+  if (/WARN/.test(line)) return 'l-warn';
+  if (/SNAPSHOT VERIFIED|Imported snapshot in|sha256 OK|forest exited 0/.test(line)) return 'l-ok';
+  if (/^\[[\d:]+\] \$ |^\s+\$ /.test(line)) return 'l-cmd';
+  if (/forest::|f3\/sidecar|libp2p/.test(line)) return 'l-forest';
+  if (/GET https|fetching|assembling|verifying|manifest:/.test(line)) return 'l-step';
+  return '';
+}
+function colourLine(line) {
+  const m = line.match(/^(\[[\d:]+\])(.*)$/s);
+  const body = m ? m[2] : line;
+  const stamp = m ? `<span class="l-ts">${esc(m[1])}</span>` : '';
+  return `<span class="${logClass(line)}">${stamp}${esc(body)}</span>`;
+}
 function renderLog() {
   const c = clearedMarker();
   const skip = c && logLines[0] === c.runId ? c.count : 0;
   const log = $('log');
-  log.textContent = logLines.slice(skip).join('\n') + (logLines.length > skip ? '\n' : '');
+  log.innerHTML = logLines.slice(skip).map(colourLine).join('\n') + (logLines.length > skip ? '\n' : '');
   log.scrollTop = log.scrollHeight;
 }
 
