@@ -88,9 +88,8 @@ function render() {
     .replace(/(--[a-z-]+)/g, '<span class="flag">$1</span>')
     .replace(/(https:\/\/[^\s]+)/g, '<span class="url">$1</span>');
   $('oneliner').innerHTML = latest
-    ? `<div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">bash</span><button class="copy">copy</button></div>
-       <div class="body"><span class="prompt">$</span>${hl(cmd1)}<span class="cm"># optional: import the verified snapshot into a Forest node</span><span class="prompt">$</span>${hl(cmd2)}</div>`
-    : '<div class="body muted small">available once the first snapshot is archived</div>';
+    ? `<button class="copy">copy</button><span class="prompt">$</span>${hl(cmd1)}<span class="cm"># optional: import the verified snapshot into a Forest node</span><span class="prompt">$</span>${hl(cmd2)}`
+    : '<span class="muted small">available once the first snapshot is archived</span>';
   const copyBtn = $('oneliner').querySelector('.copy');
   if (copyBtn) copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(`${cmd1}\n${cmd2}\n`); copyBtn.textContent = 'copied'; setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500); } catch { copyBtn.textContent = 'select & copy'; } };
 }
