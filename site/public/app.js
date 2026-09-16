@@ -37,12 +37,12 @@ function render() {
 
   $('snapshots').innerHTML = snaps.length ? snaps.map(s => {
     const parts = s.parts || [];
-    const uploaded = parts.filter(p => p.piece_cid).length;
+    const uploaded = s.status === 'pruned' ? 0 : parts.filter(p => p.piece_cid).length;
     const m = s.manifest;
     const gw = m ? `https://dweb.link/ipfs/${m.root_cid}` : null;
     return `<div class="snap">
       <div class="head"><div class="h">height ${s.height.toLocaleString()}<small>${s.date}</small><span class="tag ${s.status}">${s.status}</span></div>
-        <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
+        <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.status === 'pruned' ? ' (payload pruned, manifest kept)' : ''}${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
       <div class="kv">
         <div class="k">source</div><div><a href="${s.source_url}">${s.name}</a></div>
         <div class="k">sha256</div><div><code class="cid">${s.sha256 || '–'}</code>${s.verified_at ? ' <span class="ok small">✓ verified against publisher</span>' : ''}</div>

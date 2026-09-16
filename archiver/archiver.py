@@ -15,6 +15,8 @@ COPIES = int(os.environ.get("CV_COPIES", "2"))
 PROVIDERS = [p for p in os.environ.get("CV_PROVIDERS", "").split(",") if p]
 CHUNK = int(os.environ.get("CV_CHUNK_BYTES", str(1000 * 1024 * 1024)))
 KEEP_LOCAL = int(os.environ.get("CV_KEEP_LOCAL", "1"))
+KEEP_ONCHAIN = int(os.environ.get("CV_KEEP_ONCHAIN", "6"))
+MIN_INTERVAL_EPOCHS = int(os.environ.get("CV_MIN_INTERVAL_EPOCHS", "0"))
 UPLOAD_RETRIES = int(os.environ.get("CV_UPLOAD_RETRIES", "3"))
 FILECOIN_PIN = os.environ.get("CV_FILECOIN_PIN", "filecoin-pin")
 MANIFEST_VERSION = 1
@@ -236,7 +238,7 @@ def archive_one(item, workdir, state, dry_run=False):
 
 
 def prune_local(workdir, state):
-    done = sorted([s for s in state["snapshots"] if s["status"] == "done"], key=lambda s: s["height"])
+    done = sorted([s for s in state["snapshots"] if s["status"] in ("done", "pruned")], key=lambda s: s["height"])
     for s in done[:-KEEP_LOCAL] if KEEP_LOCAL > 0 else done:
         for p in (workdir / "downloads" / s["name"], workdir / "parts" / s["name"]):
             if p.exists():
@@ -246,6 +248,28 @@ def prune_local(workdir, state):
         p = workdir / "parts" / s["name"]
         if p.exists():
             shutil.rmtree(p)
+
+
+def prune_onchain(state):
+    """Remove snapshot payload pieces beyond the newest KEEP_ONCHAIN archived snapshots. Manifests stay."""
+    if KEEP_ONCHAIN <= 0:
+        return
+    done = sorted([s for s in state["snapshots"] if s["status"] == "done"], key=lambda s: s["height"])
+    for s in done[:-KEEP_ONCHAIN]:
+        log(f"pruning on-chain pieces for {s['name']} (keeping newest {KEEP_ONCHAIN})")
+        failed = False
+        for part in s["parts"]:
+            for c in part.get("copies", []):
+                if c.get("removed"):
+                    continue
+                try:
+                    run_pin(["rm", "--network", NETWORK, "--data-set-id", str(c["data_set_id"]), "--piece", part["piece_cid"]])
+                    c["removed"] = True; c["removed_at"] = now()
+                except Exception as e:
+                    failed = True
+                    log(f"prune failed for piece {part['piece_cid']} in set {c.get('data_set_id')}: {e}")
+        if not failed:
+            s["status"] = "pruned"; s["pruned_at"] = now()
 
 
 def main():
@@ -266,9 +290,13 @@ def main():
     item = items[0]
     name, height, _ = parse_name(item["url"])
     existing = next((s for s in state["snapshots"] if s["name"] == name), None)
-    if existing and existing["status"] == "done" and not a.force:
+    if existing and existing["status"] in ("done", "pruned") and not a.force:
         log(f"latest {name} (height {height}) already archived")
         prune_local(workdir, state)
+        return 0
+    newest = max([s["height"] for s in state["snapshots"] if s["status"] in ("done", "pruned")] or [0])
+    if MIN_INTERVAL_EPOCHS and height < newest + MIN_INTERVAL_EPOCHS and not a.force:
+        log(f"latest {name} is only {height - newest} epochs past the last archive; waiting for {MIN_INTERVAL_EPOCHS}")
         return 0
     log(f"archiving {name} (height {height}, {item['size']/1e9:.2f} GB)")
     try:
@@ -280,6 +308,8 @@ def main():
         log(f"FAILED: {e}")
         return 1
     if not a.dry_run:
+        prune_onchain(state)
+        save_state(workdir / "state.json", state)
         prune_local(workdir, state)
     return 0
 

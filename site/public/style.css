@@ -12,7 +12,7 @@ h1 { margin:0; font-size:26px; letter-spacing:.3px }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
 .counters { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:14px 0 18px }
 .counter { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px }
-.counter .n { font-size:28px; font-weight:700; font-variant-numeric:tabular-nums }
+.counter .n { font-size:clamp(18px,2.2vw,28px); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap }
 .counter .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px }
 .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px }
 .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px }
@@ -24,7 +24,7 @@ h2 { margin:0 0 10px; font-size:16px }
 .snap .head { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:baseline }
 .snap .h { font-size:18px; font-weight:700 } .snap .h small { color:var(--muted); font-weight:400; font-size:13px; margin-left:8px }
 .tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); margin-left:6px }
-.tag.done { color:var(--accent); border-color:var(--accent) } .tag.failed { color:var(--bad); border-color:var(--bad) } .tag.uploading,.tag.downloading,.tag.splitting { color:var(--warn); border-color:var(--warn) }
+.tag.done { color:var(--accent); border-color:var(--accent) } .tag.failed { color:var(--bad); border-color:var(--bad) } .tag.pruned { color:var(--muted) } .tag.uploading,.tag.downloading,.tag.splitting { color:var(--warn); border-color:var(--warn) }
 .kv { display:grid; grid-template-columns:130px 1fr; gap:3px 10px; font-size:13px; margin-top:6px }
 .kv .k { color:var(--muted) }
 code, .cmd { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px }

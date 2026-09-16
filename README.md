@@ -29,6 +29,12 @@ Then copy `deploy/chainvault.env`, set `CV_PROVIDERS` to the provider IDs you wa
 
 `--dry-run` downloads, verifies and splits without uploading.
 
+## Retention
+
+- `CV_KEEP_ONCHAIN` (default 6): after each archive, payload pieces of older snapshots are removed with `filecoin-pin rm`; their manifests stay on Filecoin so the chain of manifests is complete. Forest publishes a calibnet snapshot every ~2 hours, so 6 keeps about 12 hours (~110 GB per copy).
+- `CV_MIN_INTERVAL_EPOCHS` (default 0): archive only when the newest snapshot is at least this many epochs past the last archived one (2880 = daily).
+- `CV_KEEP_LOCAL` (default 1): downloaded files kept on disk.
+
 ## Deploy (Hetzner box, filoz-dealbot)
 
 1. `deploy/deploy.sh` from mission-control.
