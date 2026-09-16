@@ -27,7 +27,7 @@ function render() {
   $('c-snaps').textContent = done.length;
   $('c-bytes').textContent = fmtBytes(t.bytes_under_proof || done.reduce((a, s) => a + s.size, 0));
   $('c-proofs').textContent = t.proofs_observed ?? '–';
-  $('c-last').textContent = t.latest_proof_seconds_ago != null ? fmtDur(t.latest_proof_seconds_ago) + ' ago' : '–';
+  $('c-last').textContent = t.latest_proof_seconds_ago != null ? fmtDur(t.latest_proof_seconds_ago) : '–';
   $('c-sets').textContent = t.live != null ? `${t.live} / ${t.data_sets}` : '–';
   $('c-height').textContent = done.length ? done[0].height.toLocaleString() : '–';
   const price = proofs?.pricing?.price_per_tib_month_usdfc;
