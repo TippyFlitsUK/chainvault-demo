@@ -37,8 +37,16 @@ def fetch(url, dest):
 
 
 def unpack_car(car, outdir):
-    outdir.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["npx", "--yes", "ipfs-car", "unpack", str(car), "--output", str(outdir)], check=True, capture_output=True)
+    """ipfs-car writes a single-file CAR to the output path itself and a directory CAR under it, so the path must not pre-exist."""
+    outdir = Path(outdir)
+    if outdir.exists():
+        shutil.rmtree(outdir) if outdir.is_dir() else outdir.unlink()
+    outdir.parent.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(["npx", "--yes", "ipfs-car", "unpack", str(car), "--output", str(outdir)], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"ipfs-car unpack failed: {(r.stderr or r.stdout).strip().splitlines()[-1][:200]}")
+    if outdir.is_file():
+        return outdir
     files = [p for p in outdir.rglob("*") if p.is_file()]
     if len(files) != 1:
         raise RuntimeError(f"expected one file in CAR, found {len(files)}")
