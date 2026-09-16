@@ -106,6 +106,7 @@ def main():
     ap.add_argument("--forest-bin", default=os.environ.get("CV_FOREST_BIN"))
     ap.add_argument("--forest-args", default=os.environ.get("CV_FOREST_ARGS", "--chain calibnet --halt-after-import"))
     ap.add_argument("--keep-parts", action="store_true")
+    ap.add_argument("--discard", action="store_true", help="delete the rebuilt snapshot after verification when no Forest import runs")
     ap.add_argument("--parallel", type=int, default=int(os.environ.get("CV_PARALLEL", "4")), help="parts fetched concurrently, spread across providers")
     a = ap.parse_args()
     workdir = Path(a.workdir)
@@ -187,6 +188,10 @@ def main():
         p.wait()
         log(f"forest exited {p.returncode}")
         return p.returncode
+    if a.discard:
+        out.unlink(missing_ok=True)
+        log("no --forest-bin given; verified copy discarded (--discard)")
+        return 0
     log("no --forest-bin given; stopping after verification")
     return 0
 
