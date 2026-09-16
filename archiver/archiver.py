@@ -4,7 +4,8 @@
 One run = archive the newest snapshot not yet archived. Safe to cron; a lock file
 prevents overlap. State lives in <workdir>/state.json and is what the site reads.
 """
-import argparse, fcntl, hashlib, json, os, re, shutil, subprocess, sys, time, urllib.request
+import argparse, fcntl, hashlib, json, os, re, shutil, subprocess, sys, threading, time, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +32,8 @@ KEEP_LOCAL = int(os.environ.get("CV_KEEP_LOCAL", "1"))
 KEEP_ONCHAIN = int(os.environ.get("CV_KEEP_ONCHAIN", "6"))
 MIN_INTERVAL_EPOCHS = int(os.environ.get("CV_MIN_INTERVAL_EPOCHS", "0"))
 UPLOAD_RETRIES = int(os.environ.get("CV_UPLOAD_RETRIES", "3"))
+PARALLEL = max(1, int(os.environ.get("CV_PARALLEL", "4")))
+STATE_LOCK = threading.Lock()
 FILECOIN_PIN = os.environ.get("CV_FILECOIN_PIN", "filecoin-pin")
 MANIFEST_VERSION = 1
 NAME_RE = re.compile(r"forest_snapshot_(?P<chain>[a-z]+)_(?P<date>\d{4}-\d{2}-\d{2})_height_(?P<height>\d+)\.forest\.car\.zst$")
@@ -72,10 +75,11 @@ def load_state(path):
 
 
 def save_state(path, state):
-    state["updated_at"] = now()
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, indent=2))
-    tmp.replace(path)
+    with STATE_LOCK:
+        state["updated_at"] = now()
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(state, indent=2))
+        tmp.replace(path)
 
 
 def latest_listing():
@@ -126,13 +130,14 @@ def split_file(src, parts_dir, chunk):
 
 def run_pin(args):
     cmd = [FILECOIN_PIN] + args
-    log("$ " + " ".join(cmd))
+    tag = next((a.rsplit(".part", 1)[-1] for a in args if ".part" in a), "manifest")
+    log(f"[{tag}] $ " + " ".join(cmd))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     lines = []
     for line in p.stdout:
         line = line.rstrip("\n")
         if line.strip():
-            print("    " + line, flush=True)
+            print(f"    [{tag}] {line}", flush=True)
         lines.append(line)
     p.wait()
     if p.returncode != 0:
@@ -225,14 +230,20 @@ def archive_one(item, workdir, state, dry_run=False):
         log(f"dry run: would upload {len(parts)} parts")
         return rec
 
-    for p, prec in zip(parts, rec["parts"]):
-        if prec.get("piece_cid"):
-            continue
+    def upload(p, prec):
         meta = {"chainvault": "snapshot"}  # cap is 3 keys per piece; filecoin-pin adds name, the SDK adds ipfsRootCID
         r = pin_add(Path(p["file"]), meta)
         prec.update(r)
         prec["uploaded_at"] = now()
         save_state(workdir / "state.json", state)
+
+    todo = [(p, prec) for p, prec in zip(parts, rec["parts"]) if not prec.get("piece_cid")]
+    log(f"uploading {len(todo)} parts, {PARALLEL} at a time")
+    with ThreadPoolExecutor(max_workers=PARALLEL) as pool:
+        futures = [pool.submit(upload, p, prec) for p, prec in todo]
+        errors = [f.exception() for f in futures if f.exception()]
+    if errors:
+        raise RuntimeError(f"{len(errors)} part upload(s) failed: {errors[0]}")
 
     prev = [s for s in state["snapshots"] if s.get("manifest") and s["name"] != name]
     prev.sort(key=lambda s: s["height"])
