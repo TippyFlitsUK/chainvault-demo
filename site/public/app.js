@@ -35,7 +35,7 @@ function render() {
     const s0 = done[0];
     const copies = s0.parts.length ? s0.parts.reduce((a, p) => a + (p.copies || []).length, 0) / s0.parts.length : 1;
     const perMonth = (s0.size * copies / 1099511627776) * price;
-    $('c-cost').textContent = `${perMonth.toFixed(3)} USDFC / month`;
+    $('c-cost').textContent = perMonth.toFixed(3);
     $('c-cost').title = `${price} USDFC per TiB per month on-chain (Warm Storage), ${fmtBytes(s0.size)} × ${copies.toFixed(0)} copies`;
   } else { $('c-cost').textContent = '–'; }
   $('verifier').textContent = proofs?.pdp_verifier || '';
