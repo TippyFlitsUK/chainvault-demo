@@ -39,7 +39,7 @@ function render() {
     const parts = s.parts || [];
     const uploaded = s.status === 'pruned' ? 0 : parts.filter(p => p.piece_cid).length;
     const m = s.manifest;
-    const gw = m ? `https://dweb.link/ipfs/${m.root_cid}` : null;
+    const gw = m ? `https://inbrowser.link/ipfs/${m.root_cid}` : null;
     return `<div class="snap">
       <div class="head"><div class="h">height ${s.height.toLocaleString()}<small>${s.date}</small><span class="tag ${s.status}">${s.status}</span></div>
         <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.status === 'pruned' ? ' (payload pruned, manifest kept)' : ''}${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
