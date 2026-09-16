@@ -3,12 +3,26 @@
 
 Every step logs one line; the demo site streams this log live.
 """
-import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile, threading, time, urllib.request
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
 UA = "chainvault-rehydrate/0.1"
+
+
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+FOREST_KEEP = ("Starting Forest daemon", "Using network", "Importing chain from snapshot", "Importing F3 snapshot",
+               "Imported F3 snapshot", "Imported snapshot in", "Forest finish shutdown")
+FOREST_EXPECTED_WARNINGS = ("Error creating hardlink", "encryption disabled", "Keystore does not exist", "Networking keystore not found")
+
+
+def forest_line_matters(line):
+    if any(k in line for k in FOREST_KEEP):
+        return True
+    if (" WARN " in line or " ERROR " in line) and not any(k in line for k in FOREST_EXPECTED_WARNINGS):
+        return True
+    return False
 
 
 def now():
@@ -107,6 +121,7 @@ def main():
     ap.add_argument("--forest-args", default=os.environ.get("CV_FOREST_ARGS", "--chain calibnet --halt-after-import"))
     ap.add_argument("--keep-parts", action="store_true")
     ap.add_argument("--discard", action="store_true", help="delete the rebuilt snapshot after verification when no Forest import runs")
+    ap.add_argument("--forest-verbose", action="store_true", help="show every Forest log line instead of the import story")
     ap.add_argument("--parallel", type=int, default=int(os.environ.get("CV_PARALLEL", "4")), help="parts fetched concurrently, spread across providers")
     a = ap.parse_args()
     workdir = Path(a.workdir)
@@ -184,7 +199,9 @@ def main():
         log("$ " + " ".join(cmd))
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         for line in p.stdout:
-            print("    " + line.rstrip(), flush=True)
+            line = ANSI_RE.sub("", line.rstrip())
+            if a.forest_verbose or forest_line_matters(line):
+                print("    " + line, flush=True)
         p.wait()
         log(f"forest exited {p.returncode}")
         if a.discard:
