@@ -3,7 +3,7 @@ const path = require('path');
 const envFile = path.join(__dirname, 'chainvault.env');
 const fileEnv = Object.fromEntries(fs.readFileSync(envFile, 'utf8').split('\n')
   .filter((l) => l && !l.startsWith('#') && l.includes('='))
-  .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+  .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).replace(/^"(.*)"$/, '$1')]));
 module.exports = {
   apps: [{
     name: 'chainvault-site',
