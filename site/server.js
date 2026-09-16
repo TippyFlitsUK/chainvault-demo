@@ -22,17 +22,29 @@ function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 }
 
-let running = null;
+const PIDFILE = path.join(DATA, 'rehydrate.pid');
+
+function runningPid() {
+  try {
+    const pid = parseInt(fs.readFileSync(PIDFILE, 'utf8'), 10);
+    if (!pid) return null;
+    process.kill(pid, 0);
+    return pid;
+  } catch { return null; }
+}
 
 function startRehydrate(req, res) {
   const auth = req.headers['authorization'] || '';
   if (!REHYDRATE_TOKEN || auth !== `Bearer ${REHYDRATE_TOKEN}`) return sendJson(res, 401, { error: 'unauthorised' });
-  if (running) return sendJson(res, 409, { error: 'already running', pid: running.pid });
+  const pid = runningPid();
+  if (pid) return sendJson(res, 409, { error: 'already running', pid });
   fs.mkdirSync(DATA, { recursive: true });
   const out = fs.openSync(REHYDRATE_LOG, 'w');
-  running = spawn('python3', [REHYDRATE, '--workdir', DATA, '--latest'], { stdio: ['ignore', out, out], env: process.env });
-  running.on('exit', () => { running = null; fs.closeSync(out); });
-  sendJson(res, 202, { started: true, pid: running.pid });
+  const child = spawn('python3', [REHYDRATE, '--workdir', DATA, '--latest'], { stdio: ['ignore', out, out], env: process.env, detached: true });
+  fs.closeSync(out);
+  fs.writeFileSync(PIDFILE, String(child.pid));
+  child.unref();
+  sendJson(res, 202, { started: true, pid: child.pid });
 }
 
 function streamLog(req, res) {
@@ -48,7 +60,7 @@ function streamLog(req, res) {
     for (const line of buf.toString('utf8').split('\n')) if (line) res.write(`data: ${JSON.stringify(line)}\n\n`);
   };
   send();
-  const t = setInterval(() => { send(); res.write(`: ping ${running ? 'running' : 'idle'}\n\n`); }, 1000);
+  const t = setInterval(() => { send(); res.write(`: ping ${runningPid() ? 'running' : 'idle'}\n\n`); }, 1000);
   req.on('close', () => clearInterval(t));
 }
 
@@ -64,7 +76,7 @@ http.createServer((req, res) => {
   }
   if (url.pathname === '/api/rehydrate/start' && req.method === 'POST') return startRehydrate(req, res);
   if (url.pathname === '/api/rehydrate/stream') return streamLog(req, res);
-  if (url.pathname === '/api/rehydrate/status') return sendJson(res, 200, { running: !!running });
+  if (url.pathname === '/api/rehydrate/status') return sendJson(res, 200, { running: !!runningPid(), pid: runningPid() });
   let file = path.normalize(url.pathname === '/' ? '/index.html' : url.pathname);
   file = path.join(PUBLIC, file);
   if (!file.startsWith(PUBLIC) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('not found'); }
