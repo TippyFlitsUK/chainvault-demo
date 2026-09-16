@@ -187,6 +187,17 @@ def pin_add(path, metadata):
     raise last
 
 
+def known_data_sets(state):
+    """Data set IDs recorded by earlier successful uploads, per provider."""
+    found = set()
+    for s in state.get("snapshots", []):
+        for part in s.get("parts", []):
+            for c in part.get("copies", []):
+                if "data_set_id" in c:
+                    found.add((c.get("provider_id"), c["data_set_id"]))
+    return found
+
+
 def archive_one(item, workdir, state, dry_run=False):
     name, height, date = parse_name(item["url"])
     previous = next((s for s in state["snapshots"] if s["name"] == name), None)
@@ -238,6 +249,12 @@ def archive_one(item, workdir, state, dry_run=False):
         save_state(workdir / "state.json", state)
 
     todo = [(p, prec) for p, prec in zip(parts, rec["parts"]) if not prec.get("piece_cid")]
+    if todo and not any(pr.get("copies") for pr in rec["parts"]) and not known_data_sets(state):
+        # first ever upload for this wallet/provider set: run one part alone so each provider's data set
+        # is created exactly once before parallel uploads try to reuse it
+        p, prec = todo.pop(0)
+        log(f"no data sets known yet; uploading part {p['index']} alone first")
+        upload(p, prec)
     log(f"uploading {len(todo)} parts, {PARALLEL} at a time")
     with ThreadPoolExecutor(max_workers=PARALLEL) as pool:
         futures = [pool.submit(upload, p, prec) for p, prec in todo]
