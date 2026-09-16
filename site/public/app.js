@@ -88,11 +88,11 @@ function render() {
     .replace(/(--[a-z-]+)/g, '<span class="flag">$1</span>')
     .replace(/(https:\/\/[^\s]+)/g, '<span class="url">$1</span>');
   $('oneliner').innerHTML = latest
-    ? `<div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd1)}</pre><button class="copy" data-cmd="${esc(cmd1)}">copy</button></div>
-       <div class="cmdnote">then, optionally, import it into a Forest node:</div>
-       <div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd2)}</pre><button class="copy" data-cmd="${esc(cmd2)}">copy</button></div>`
-    : '<span class="muted small">available once the first snapshot is archived</span>';
-  for (const b of $('oneliner').querySelectorAll('.copy')) b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.cmd); b.textContent = 'copied'; setTimeout(() => { b.textContent = 'copy'; }, 1500); } catch { b.textContent = 'select & copy'; } };
+    ? `<div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="title">bash</span><button class="copy">copy</button></div>
+       <div class="body"><span class="prompt">$</span>${hl(cmd1)}<span class="cm"># optional: import the verified snapshot into a Forest node</span><span class="prompt">$</span>${hl(cmd2)}</div>`
+    : '<div class="body muted small">available once the first snapshot is archived</div>';
+  const copyBtn = $('oneliner').querySelector('.copy');
+  if (copyBtn) copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(`${cmd1}\n${cmd2}\n`); copyBtn.textContent = 'copied'; setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500); } catch { copyBtn.textContent = 'select & copy'; } };
 }
 
 let logLines = [];
