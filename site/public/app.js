@@ -4,7 +4,8 @@ const fmtDur = (s) => { if (s == null) return '–'; if (s < 0) return `overdue 
 const short = (c) => c ? `${c.slice(0, 10)}…${c.slice(-6)}` : '–';
 const ago = (iso) => iso ? fmtDur((Date.now() - new Date(iso).getTime())/1000) + ' ago' : '–';
 
-let providers = {}, proofs = null, state = null, preferred = null;
+let providers = {}, proofs = null, state = null, preferred = null, showAll = false;
+const DEFAULT_VISIBLE = 6;
 
 async function load() {
   const [s, p, pr] = await Promise.all([
@@ -35,14 +36,21 @@ function render() {
   $('livepill').className = 'pill' + (headAge < 900 ? ' ok' : '');
   $('livetext').textContent = proofs?.head_epoch ? `calibnet epoch ${proofs.head_epoch.toLocaleString()} · ${ago(proofs.head_time)}` : 'no proof data yet';
 
-  $('snapshots').innerHTML = snaps.length ? snaps.map(s => {
+  const visible = showAll ? snaps : snaps.slice(0, DEFAULT_VISIBLE);
+  $('showall').hidden = snaps.length <= DEFAULT_VISIBLE;
+  $('showall').textContent = showAll ? `show newest ${DEFAULT_VISIBLE}` : `show all ${snaps.length}`;
+  $('snapshots').innerHTML = visible.length ? visible.map(s => {
     const parts = s.parts || [];
-    const uploaded = s.status === 'pruned' ? 0 : parts.filter(p => p.piece_cid).length;
     const m = s.manifest;
     const gw = m ? `https://inbrowser.link/ipfs/${m.root_cid}` : null;
+    if (s.status === 'pruned') {
+      return `<div class="snap compact"><div class="h">height ${s.height.toLocaleString()}</div><span class="tag pruned">payload pruned</span>
+        <span class="muted">${s.date} · ${fmtBytes(s.size)} · manifest kept</span>${m ? ` <code class="cid">${short(m.root_cid)}</code> <a href="${gw}">gateway</a> · <a href="/api/manifest?name=${encodeURIComponent(s.name)}">json</a>` : ''}</div>`;
+    }
+    const uploaded = parts.filter(p => p.piece_cid).length;
     return `<div class="snap">
       <div class="head"><div class="h">height ${s.height.toLocaleString()}<small>${s.date}</small><span class="tag ${s.status}">${s.status}</span></div>
-        <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.status === 'pruned' ? ' (payload pruned, manifest kept)' : ''}${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
+        <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
       <div class="kv">
         <div class="k">source</div><div><a href="${s.source_url}">${s.name}</a></div>
         <div class="k">sha256</div><div><code class="cid">${s.sha256 || '–'}</code>${s.verified_at ? ' <span class="ok small">✓ verified against publisher</span>' : ''}</div>
@@ -120,6 +128,7 @@ $('run').onclick = async () => {
   try { localStorage.removeItem('cv_cleared'); } catch {}
   logLines = []; renderLog(); setTimeout(() => { $('run').disabled = false; }, 3000);
 };
+$('showall').onclick = () => { showAll = !showAll; render(); };
 $('clear').onclick = () => {
   try { localStorage.setItem('cv_cleared', JSON.stringify({ runId: logLines[0] || '', count: logLines.length })); } catch {}
   renderLog(); $('runstatus').textContent = '';
