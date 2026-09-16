@@ -81,9 +81,17 @@ function render() {
 
   const latest = chain[0];
   const anyProv = latest && (providers[preferred] || Object.values(providers)[0]);
-  $('oneliner').textContent = latest
-    ? `curl -sO ${location.origin}/rehydrate.py && python3 rehydrate.py --site ${location.origin}\n# then: forest --chain calibnet --import-snapshot ./${latest.name}`
-    : 'available once the first snapshot is archived';
+  const cmd1 = latest ? `curl -sO ${location.origin}/rehydrate.py && python3 rehydrate.py --site ${location.origin}` : '';
+  const cmd2 = latest ? `forest --chain calibnet --import-snapshot ./${latest.name}` : '';
+  const hl = (s) => esc(s)
+    .replace(/(^|&amp;&amp; )(curl|python3|forest)\b/g, '$1<span class="kw">$2</span>')
+    .replace(/(--[a-z-]+)/g, '<span class="flag">$1</span>')
+    .replace(/(https:\/\/[^\s]+)/g, '<span class="url">$1</span>');
+  $('oneliner').innerHTML = latest
+    ? `<div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd1)}</pre><button class="copy" data-cmd="${esc(cmd1)}">copy</button></div>
+       <div class="cmdline"><span class="prompt">$</span><pre class="cmdtext">${hl(cmd2)} <span class="cm"># optional: import into a Forest node</span></pre><button class="copy" data-cmd="${esc(cmd2)}">copy</button></div>`
+    : '<span class="muted small">available once the first snapshot is archived</span>';
+  for (const b of $('oneliner').querySelectorAll('.copy')) b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.cmd); b.textContent = 'copied'; setTimeout(() => { b.textContent = 'copy'; }, 1500); } catch { b.textContent = 'select & copy'; } };
 }
 
 let logLines = [];

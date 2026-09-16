@@ -54,5 +54,12 @@ button.small-btn { font-size:12px; padding:3px 10px; margin-left:10px; vertical-
 .snap.compact .h { font-size:14px }
 .log .l-ts { color:#566579 } .log .l-ok { color:var(--accent) } .log .l-bad { color:var(--bad) } .log .l-warn { color:var(--warn) } .log .l-cmd { color:var(--accent2) } .log .l-forest { color:#b392f0 } .log .l-step { color:#c9d1d9 }
 .log { background:#05080c; border:1px solid var(--line); border-radius:8px; padding:12px; height:280px; overflow:auto; margin:0 0 8px; white-space:pre-wrap; font-size:12.5px }
-.cmd { background:#05080c; border:1px solid var(--line); border-radius:8px; padding:10px; white-space:pre-wrap; margin:6px 0 0 }
+.cmdbox { background:#05080c; border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:8px 0 0 }
+.cmdbox .cmdline { display:flex; gap:12px; align-items:flex-start; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.7; margin:0 }
+.cmdbox .prompt { color:var(--accent); user-select:none; flex:0 0 auto }
+.cmdbox .cmdtext { white-space:pre-wrap; word-break:break-all; margin:0; flex:1 1 auto; color:#e6edf3 }
+.cmdbox .cmdtext .kw { color:var(--accent2) } .cmdbox .cmdtext .flag { color:#b392f0 } .cmdbox .cmdtext .url { color:#79c0ff } .cmdbox .cmdtext .cm { color:var(--muted) }
+.cmdbox .copy { background:transparent; color:var(--muted); border:1px solid var(--line); padding:3px 10px; font-size:12px; font-weight:500; flex:0 0 auto }
+.cmdbox .copy:hover { color:var(--fg) }
+.cmdbox .cmdline + .cmdline { margin-top:8px }
 footer { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; margin-top:18px; flex-wrap:wrap; gap:8px }
