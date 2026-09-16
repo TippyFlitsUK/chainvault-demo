@@ -78,12 +78,21 @@ function render() {
     : 'available once the first snapshot is archived';
 }
 
+let logLines = [];
+function clearedMarker() { try { return JSON.parse(localStorage.getItem('cv_cleared') || 'null'); } catch { return null; } }
+function renderLog() {
+  const c = clearedMarker();
+  const skip = c && logLines[0] === c.runId ? c.count : 0;
+  const log = $('log');
+  log.textContent = logLines.slice(skip).join('\n') + (logLines.length > skip ? '\n' : '');
+  log.scrollTop = log.scrollHeight;
+}
+
 function stream() {
   const es = new EventSource('/api/rehydrate/stream');
-  const log = $('log');
-  es.onopen = () => { log.textContent = ''; $('runstatus').textContent = ''; };
-  es.onmessage = (e) => { log.textContent += JSON.parse(e.data) + '\n'; log.scrollTop = log.scrollHeight; };
-  es.addEventListener('reset', () => { log.textContent = ''; });
+  es.onopen = () => { logLines = []; renderLog(); $('runstatus').textContent = ''; };
+  es.onmessage = (e) => { logLines.push(JSON.parse(e.data)); renderLog(); };
+  es.addEventListener('reset', () => { logLines = []; try { localStorage.removeItem('cv_cleared'); } catch {} renderLog(); });
   es.onerror = () => { $('runstatus').textContent = 'stream disconnected, retrying'; };
 }
 
@@ -91,10 +100,14 @@ $('run').onclick = async () => {
   $('run').disabled = true; $('runstatus').textContent = 'starting…';
   const r = await fetch('/api/rehydrate/start', { method: 'POST', headers: { authorization: `Bearer ${$('token').value}` } });
   const j = await r.json();
-  $('runstatus').textContent = r.ok ? `running (pid ${j.pid})` : (j.error || 'failed');
-  $('log').textContent = ''; setTimeout(() => { $('run').disabled = false; }, 3000);
+  $('runstatus').textContent = r.ok ? 'running' : (j.error || 'failed');
+  try { localStorage.removeItem('cv_cleared'); } catch {}
+  logLines = []; renderLog(); setTimeout(() => { $('run').disabled = false; }, 3000);
 };
-$('clear').onclick = () => { $('log').textContent = ''; $('runstatus').textContent = ''; };
+$('clear').onclick = () => {
+  try { localStorage.setItem('cv_cleared', JSON.stringify({ runId: logLines[0] || '', count: logLines.length })); } catch {}
+  renderLog(); $('runstatus').textContent = '';
+};
 
 load().catch(e => { $('livetext').textContent = 'load failed: ' + e.message; });
 setInterval(() => load().catch(() => {}), 30000);
