@@ -111,6 +111,7 @@ def main():
     workdir = Path(a.workdir)
 
     t_start = time.time()
+    (workdir / "rehydrate.pid").write_text(str(os.getpid()))
     log("ChainVault rehydrate starting")
     m = load_manifest(a, workdir)
     name = m["snapshot_name"]

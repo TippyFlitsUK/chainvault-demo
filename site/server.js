@@ -41,12 +41,13 @@ function startRehydrate(req, res) {
   if (pid) return sendJson(res, 409, { error: 'already running', pid });
   fs.mkdirSync(DATA, { recursive: true });
   const out = fs.openSync(REHYDRATE_LOG, 'w');
-  const args = [REHYDRATE, '--workdir', DATA, '--latest', ...(REHYDRATE_PROVIDER ? ['--provider-id', REHYDRATE_PROVIDER] : [])];
-  const child = spawn('python3', args, { stdio: ['ignore', out, out], env: process.env, detached: true });
-  fs.closeSync(out);
-  fs.writeFileSync(PIDFILE, String(child.pid));
-  child.unref();
-  sendJson(res, 202, { started: true, pid: child.pid });
+  const args = ['-f', 'python3', REHYDRATE, '--workdir', DATA, '--latest', ...(REHYDRATE_PROVIDER ? ['--provider-id', REHYDRATE_PROVIDER] : [])];
+  // setsid -f forks the run off to init so a restart of this server (PM2 kills by process tree) cannot reach it;
+  // the script writes its own pid into PIDFILE
+  try { fs.unlinkSync(PIDFILE); } catch {}
+  const child = spawn('setsid', args, { stdio: ['ignore', out, out], env: process.env });
+  child.on('exit', () => fs.closeSync(out));
+  sendJson(res, 202, { started: true });
 }
 
 function streamLog(req, res) {
