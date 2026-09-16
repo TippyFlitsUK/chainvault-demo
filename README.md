@@ -36,9 +36,9 @@ python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python
 - `CV_KEEP_LOCAL` (default 1): downloaded files kept on disk.
 - `CV_PARALLEL` (default 4): parts uploaded concurrently; each filecoin-pin process holds one part in memory (~0.5 GB).
 
-## Deploy (Hetzner box, filoz-dealbot)
+## Deploy
 
-1. `deploy/deploy.sh` from mission-control.
+1. `HOST=user@host deploy/deploy.sh` from the machine holding the checkout.
 2. On the box: `filecoin-pin login --network calibration` as above, then `crontab -e` and paste `deploy/crontab.txt`.
 3. Set a real `CV_REHYDRATE_TOKEN` in `deploy/ecosystem.config.cjs`, then `pm2 start deploy/ecosystem.config.cjs && pm2 save`.
 4. nginx: install `deploy/nginx-chainvault.conf`, add the DNS record and cert.
