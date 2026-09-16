@@ -1,0 +1,26 @@
+{
+  "network": "calibration",
+  "providers": [
+    {
+      "id": 2,
+      "name": "ezpdpz-calib2",
+      "address": "0xbCdf1bdc1a97D071a5a8EF03F1F05225b6E2a1Ba",
+      "location": "C=GB;ST=Gloucestershire;L=Cheltenham",
+      "service_url": "https://calib2.ezpdpz.net"
+    },
+    {
+      "id": 9,
+      "name": "ezpdpz-calib",
+      "address": "0xa3971A7234a3379A1813d9867B531e7EeB20ae07",
+      "location": "C=GB;ST=Gloucestershire;L=Cheltenham",
+      "service_url": "https://calib.ezpdpz.net"
+    },
+    {
+      "id": 4,
+      "name": "infrafolio-calib",
+      "address": "0xCb9e86945cA31E6C3120725BF0385CBAD684040c",
+      "location": "C=US;ST=Texas;L=Austin",
+      "service_url": "https://caliberation-pdp.infrafolio.com"
+    }
+  ]
+}

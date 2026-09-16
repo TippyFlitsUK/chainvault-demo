@@ -1,0 +1,3 @@
+# ChainVault demo (filoz-dealbot). Archiver holds a lock, so overlapping runs exit immediately.
+*/20 * * * * . /home/tippyflits/chainvault-demo/deploy/chainvault.env && python3 /home/tippyflits/chainvault-demo/archiver/archiver.py >> /home/tippyflits/chainvault/archiver.log 2>&1
+*/5  * * * * . /home/tippyflits/chainvault-demo/deploy/chainvault.env && python3 /home/tippyflits/chainvault-demo/archiver/proofs.py >> /home/tippyflits/chainvault/proofs.log 2>&1

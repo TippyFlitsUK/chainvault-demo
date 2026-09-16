@@ -1,0 +1,48 @@
+# ChainVault demo (calibnet)
+
+Archives Forest's calibnet snapshots onto Filecoin PDP storage providers, publishes a content-addressed manifest per snapshot, and shows live on-chain proof status. This is the Node Snapshot Service half of the ChainVault PRD, run against calibnet as a demo.
+
+## Pieces
+
+- `archiver/archiver.py` polls `forest-archive.chainsafe.dev` for the newest calibnet snapshot, downloads it, verifies the publisher's SHA256, splits it into 1000 MiB parts (the PDP piece cap is 1,065,353,216 bytes), uploads every part with `filecoin-pin add` (N copies across providers), writes a manifest linking to the previous manifest, and uploads the manifest too. State is `<workdir>/state.json`.
+- `archiver/proofs.py` reads PDPVerifier on calibnet for every data set the archive uses (live, leaf count, last proven epoch, next challenge) and writes `<workdir>/proofs.json`.
+- `archiver/rehydrate.py` pulls a snapshot back: fetches each part's CAR from a provider's `/piece/<cid>`, unpacks with `ipfs-car`, verifies part and whole-file SHA256, optionally runs `forest --import-snapshot`.
+- `site/` a dependency-free Node server plus one page: counters, snapshot list with retrieval links, proof status bars, manifest chain, and a live rehydration log (SSE). Serves `rehydrate.py` for the one-liner.
+
+## Requirements
+
+Node 22+, Python 3.10+, curl, `filecoin-pin` 2.x installed globally, `npx` reachable (for `ipfs-car`).
+
+## First-time setup (on the box that runs the archiver)
+
+```bash
+filecoin-pin login --network calibration && filecoin-pin payments setup --auto --network calibration && filecoin-pin balance --network calibration
+```
+
+Then copy `deploy/chainvault.env`, set `CV_PROVIDERS` to the provider IDs you want (calibration: 9 = ezpdpz-calib, 2 = ezpdpz-calib2, 4 = infrafolio-calib) and `CV_COPIES` to match.
+
+## Run once by hand
+
+```bash
+. deploy/chainvault.env && python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python3 archiver/proofs.py
+```
+
+`--dry-run` downloads, verifies and splits without uploading.
+
+## Deploy (Hetzner box, filoz-dealbot)
+
+1. `deploy/deploy.sh` from mission-control.
+2. On the box: `filecoin-pin login --network calibration` as above, then `crontab -e` and paste `deploy/crontab.txt`.
+3. Set a real `CV_REHYDRATE_TOKEN` in `deploy/ecosystem.config.cjs`, then `pm2 start deploy/ecosystem.config.cjs && pm2 save`.
+4. nginx: install `deploy/nginx-chainvault.conf`, add the DNS record and cert.
+
+## Manifest
+
+```
+{ version, chain_id, object_type: "SNAPSHOT", start_height, end_height, finalized_height,
+  snapshot_name, snapshot_date, source_url, size, sha256, chunk_bytes,
+  parts: [{ index, size, sha256, root_cid, piece_cid, copies: [{ provider_id, data_set_id, piece_id }] }],
+  parent_manifest_cid, created_at }
+```
+
+Manifest and payload parts are separately content addressed, as in the PRD.

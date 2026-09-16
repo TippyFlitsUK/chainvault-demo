@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChainVault · calibnet</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">⛓</div>
+    <div>
+      <h1>ChainVault</h1>
+      <div class="sub">Filecoin calibnet snapshots, archived on Filecoin PDP storage providers, proven on-chain</div>
+    </div>
+  </div>
+  <div class="pill" id="livepill"><span class="dot"></span><span id="livetext">connecting</span></div>
+</header>
+
+<section class="counters">
+  <div class="counter"><div class="n" id="c-snaps">–</div><div class="l">snapshots archived</div></div>
+  <div class="counter"><div class="n" id="c-bytes">–</div><div class="l">bytes under proof</div></div>
+  <div class="counter"><div class="n" id="c-proofs">–</div><div class="l">on-chain proofs observed</div></div>
+  <div class="counter"><div class="n" id="c-last">–</div><div class="l">since last proof</div></div>
+  <div class="counter"><div class="n" id="c-sets">–</div><div class="l">live data sets</div></div>
+  <div class="counter"><div class="n" id="c-height">–</div><div class="l">latest archived height</div></div>
+</section>
+
+<section class="grid">
+  <div class="card wide">
+    <h2>Snapshots <span class="muted" id="chain"></span></h2>
+    <div id="snapshots"></div>
+  </div>
+  <div class="card">
+    <h2>Proof status <span class="muted">PDPVerifier, calibnet</span></h2>
+    <div id="proofs"></div>
+  </div>
+  <div class="card">
+    <h2>Manifest chain</h2>
+    <div class="muted small">Each manifest links its parent by CID. The whole history is one content-addressed chain.</div>
+    <div id="chain-view"></div>
+  </div>
+  <div class="card wide">
+    <h2>Rehydrate a node from Filecoin</h2>
+    <div class="row">
+      <input id="token" type="password" placeholder="operator token" autocomplete="off">
+      <button id="run">Run rehydration</button>
+      <span class="muted small" id="runstatus"></span>
+    </div>
+    <pre id="log" class="log">Waiting…</pre>
+    <div class="muted small">Or on your own machine:</div>
+    <pre id="oneliner" class="cmd"></pre>
+  </div>
+</section>
+
+<footer>
+  <span>PDPVerifier <code id="verifier"></code></span>
+  <span>state refreshed <span id="refreshed">–</span></span>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
