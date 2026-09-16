@@ -190,9 +190,9 @@ def main():
         return p.returncode
     if a.discard:
         out.unlink(missing_ok=True)
-        log("no --forest-bin given; verified copy discarded (--discard)")
+        log("Forest import not configured (CV_FOREST_BIN unset); verified copy discarded")
         return 0
-    log("no --forest-bin given; stopping after verification")
+    log("Forest import not configured (CV_FOREST_BIN unset); stopping after verification")
     return 0
 
 
