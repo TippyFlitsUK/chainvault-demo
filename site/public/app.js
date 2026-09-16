@@ -81,8 +81,8 @@ function render() {
 
   const latest = chain[0];
   const anyProv = latest && (providers[preferred] || Object.values(providers)[0]);
-  $('oneliner').textContent = latest && anyProv
-    ? `curl -sO ${location.origin}/rehydrate.py\npython3 rehydrate.py --manifest-url ${location.origin}/api/manifest?name=${latest.name} --provider-url ${anyProv.service_url} --provider-id ${anyProv.id} --out ./${latest.name}\n# then: forest --chain calibnet --import-snapshot ./${latest.name}`
+  $('oneliner').textContent = latest
+    ? `curl -sO ${location.origin}/rehydrate.py && python3 rehydrate.py --site ${location.origin}\n# then: forest --chain calibnet --import-snapshot ./${latest.name}`
     : 'available once the first snapshot is archived';
 }
 

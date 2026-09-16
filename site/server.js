@@ -73,6 +73,12 @@ http.createServer((req, res) => {
   if (url.pathname === '/api/proofs') return sendJson(res, 200, readJson(path.join(DATA, 'proofs.json'), { data_sets: {} }));
   if (url.pathname === '/api/providers') return sendJson(res, 200, { ...readJson(path.join(DATA, 'providers.json'), { providers: [] }), preferred: REHYDRATE_PROVIDER ? parseInt(REHYDRATE_PROVIDER, 10) : null });
   if (url.pathname === '/api/manifest') {
+    if (url.searchParams.get('latest')) {
+      const st = readJson(path.join(DATA, 'state.json'), { snapshots: [] });
+      const done = (st.snapshots || []).filter((s) => s.status === 'done' && s.manifest).sort((a, b) => b.height - a.height);
+      if (!done.length) return sendJson(res, 404, { error: 'no archived snapshot yet' });
+      return sendJson(res, 200, readJson(path.join(DATA, 'manifests', `${done[0].name}.manifest.json`), { error: 'manifest missing' }));
+    }
     const name = url.searchParams.get('name') || '';
     if (!/^[A-Za-z0-9_.\-]+$/.test(name)) return sendJson(res, 400, { error: 'bad name' });
     return sendJson(res, 200, readJson(path.join(DATA, 'manifests', `${name}.manifest.json`), { error: 'not found' }));

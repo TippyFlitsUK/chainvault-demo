@@ -67,7 +67,20 @@ def unpack_car(car, outdir):
     return files[0]
 
 
+def http_json(url):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.load(r)
+
+
 def load_manifest(a, workdir):
+    if a.site:
+        base = a.site.rstrip("/")
+        log(f"fetching latest manifest from {base}")
+        m = http_json(f"{base}/api/manifest?latest=1")
+        if "error" in m:
+            raise SystemExit(f"site has no archived snapshot yet: {m['error']}")
+        return m
     if a.manifest_file:
         return json.loads(Path(a.manifest_file).read_text())
     if a.manifest_url:
@@ -97,6 +110,12 @@ def load_manifest(a, workdir):
 
 def provider_urls(workdir, a):
     urls = {}
+    if a.site:
+        d = http_json(f"{a.site.rstrip('/')}/api/providers")
+        for pr in d.get("providers", []):
+            urls[pr["id"]] = pr["service_url"]
+        if not a.provider_id and d.get("preferred"):
+            a.provider_id = d["preferred"]
     p = workdir / "providers.json"
     if p.exists():
         for pr in json.loads(p.read_text())["providers"]:
@@ -112,6 +131,7 @@ def main():
     ap.add_argument("--latest", action="store_true")
     ap.add_argument("--name")
     ap.add_argument("--manifest-file")
+    ap.add_argument("--site", help="ChainVault site URL; fetches the latest manifest, provider list and preferred provider from it")
     ap.add_argument("--manifest-url", help="any URL returning the manifest JSON (e.g. an IPFS gateway by root CID)")
     ap.add_argument("--manifest-piece", help="manifest piece CID, fetched from --provider-url")
     ap.add_argument("--provider-url")
@@ -134,7 +154,7 @@ def main():
     log(f"manifest: {name} height {m['end_height']} chain {m['chain_id']} parts {len(m['parts'])} size {m['size']/1e9:.2f} GB")
     log(f"expected sha256 {m['sha256']}")
     urls = provider_urls(workdir, a)
-    out = Path(a.out) if a.out else workdir / "rehydrated" / name
+    out = Path(a.out) if a.out else (Path.cwd() / name if a.site else workdir / "rehydrated" / name)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="chainvault-rehydrate-", dir=str(out.parent)))
     lock = threading.Lock()
