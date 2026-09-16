@@ -123,7 +123,11 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix="chainvault-rehydrate-", dir=str(out.parent)))
     lock = threading.Lock()
     pool_urls = [pid for pid in urls if any(pid == c.get("provider_id") for part in m["parts"] for c in part.get("copies", []))]
-    log(f"fetching {len(m['parts'])} parts, {a.parallel} at a time, across providers {pool_urls}")
+    others = [pid for pid in pool_urls if pid != a.provider_id]
+    if a.provider_id:
+        log(f"fetching {len(m['parts'])} parts, {a.parallel} at a time, from provider {a.provider_id}" + (f" (fallback {others})" if others else ""))
+    else:
+        log(f"fetching {len(m['parts'])} parts, {a.parallel} at a time, rotating across providers {pool_urls}")
 
     def fetch_part(part):
         n = f"{part['index']+1}/{len(m['parts'])}"
