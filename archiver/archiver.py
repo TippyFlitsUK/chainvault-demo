@@ -137,7 +137,7 @@ def run_pin(args):
     for line in p.stdout:
         line = line.rstrip("\n")
         if line.strip():
-            print(f"    [{tag}] {line}", flush=True)
+            print(f"    [{now()}] [{tag}] {line}", flush=True)
         lines.append(line)
     p.wait()
     if p.returncode != 0:
