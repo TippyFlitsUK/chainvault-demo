@@ -1,6 +1,6 @@
 :root { --bg:#0b0f14; --card:#121924; --line:#1f2a3a; --fg:#e6edf3; --muted:#8b9bb4; --accent:#3fb950; --accent2:#58a6ff; --warn:#d29922; --bad:#f85149; }
 * { box-sizing:border-box }
-body { margin:0 auto; width:1920px; background:var(--bg); color:var(--fg); font:15px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; padding:0 20px 40px }
+body { margin:0 auto; width:1080px; background:var(--bg); color:var(--fg); font:15px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; padding:0 20px 40px }
 html { background:var(--bg) }
 header { display:flex; justify-content:space-between; align-items:center; padding:22px 0 10px; flex-wrap:wrap; gap:12px }
 .brand { display:flex; gap:14px; align-items:center }
