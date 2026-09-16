@@ -211,7 +211,7 @@ def archive_one(item, workdir, state, dry_run=False):
     for p, prec in zip(parts, rec["parts"]):
         if prec.get("piece_cid"):
             continue
-        meta = {"chainvault": "snapshot", "height": str(height)}  # contract cap: 3 keys per piece
+        meta = {"chainvault": "snapshot"}  # cap is 3 keys per piece; filecoin-pin adds name, the SDK adds ipfsRootCID
         r = pin_add(Path(p["file"]), meta)
         prec.update(r)
         prec["uploaded_at"] = now()
@@ -233,7 +233,7 @@ def archive_one(item, workdir, state, dry_run=False):
     mdir = workdir / "manifests"; mdir.mkdir(exist_ok=True)
     mpath = mdir / f"{name}.manifest.json"
     mpath.write_text(json.dumps(manifest, indent=2))
-    r = pin_add(mpath, {"chainvault": "manifest", "height": str(height)})
+    r = pin_add(mpath, {"chainvault": "manifest"})
     rec["manifest"] = {"path": str(mpath), "root_cid": r["root_cid"], "piece_cid": r["piece_cid"],
                        "copies": r["copies"], "parent_manifest_cid": parent_cid}
     rec["status"] = "done"
