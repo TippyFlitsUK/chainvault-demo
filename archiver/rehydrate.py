@@ -187,6 +187,9 @@ def main():
             print("    " + line.rstrip(), flush=True)
         p.wait()
         log(f"forest exited {p.returncode}")
+        if a.discard:
+            out.unlink(missing_ok=True)
+            log("verified copy discarded (--discard)")
         return p.returncode
     if a.discard:
         out.unlink(missing_ok=True)

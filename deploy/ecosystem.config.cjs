@@ -16,6 +16,8 @@ module.exports = {
       CV_REHYDRATE: path.join(__dirname, '..', 'archiver', 'rehydrate.py'),
       CV_REHYDRATE_TOKEN: fileEnv.CV_REHYDRATE_TOKEN || '',
       CV_REHYDRATE_PROVIDER: fileEnv.CV_REHYDRATE_PROVIDER || '',
+      CV_FOREST_BIN: fileEnv.CV_FOREST_BIN || '',
+      CV_FOREST_ARGS: fileEnv.CV_FOREST_ARGS || '',
       PATH: fileEnv.PATH || process.env.PATH,
     },
     max_memory_restart: '300M',

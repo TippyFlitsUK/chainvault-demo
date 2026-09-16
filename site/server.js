@@ -41,7 +41,7 @@ function startRehydrate(req, res) {
   if (pid) return sendJson(res, 409, { error: 'already running', pid });
   fs.mkdirSync(DATA, { recursive: true });
   const out = fs.openSync(REHYDRATE_LOG, 'w');
-  const args = ['-f', 'python3', REHYDRATE, '--workdir', DATA, '--latest', ...(process.env.CV_FOREST_BIN ? [] : ['--discard']), ...(REHYDRATE_PROVIDER ? ['--provider-id', REHYDRATE_PROVIDER] : [])];
+  const args = ['-f', 'python3', REHYDRATE, '--workdir', DATA, '--latest', '--discard', ...(REHYDRATE_PROVIDER ? ['--provider-id', REHYDRATE_PROVIDER] : [])];
   // setsid -f forks the run off to init so a restart of this server (PM2 kills by process tree) cannot reach it;
   // the script writes its own pid into PIDFILE
   try { fs.unlinkSync(PIDFILE); } catch {}
