@@ -97,14 +97,14 @@ function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf, wantP
     'content-disposition': `inline; filename="${filename}"`, 'cache-control': 'no-cache', ...CORS, ...extraHeaders,
   };
   if (status === 206) headers['content-range'] = `bytes ${start}-${end}/${total}`;
+  const preferred = REHYDRATE_PROVIDER ? parseInt(REHYDRATE_PROVIDER, 10) : null;
+  const matches = (c) => wantProvider && (String(c.provider_id) === wantProvider || (c.url || '').includes(`//${wantProvider}`) || (providerUrl(c.provider_id) || '').includes(`//${wantProvider}`));
   const firstSources = parts.length ? sourcesOf(parts[0]).filter((c) => !wantProvider || matches(c)) : [];
   if (wantProvider && !firstSources.length) { res.writeHead(404, { 'content-type': 'text/plain', ...CORS }); return res.end(`provider ${wantProvider} does not hold this content\n`); }
   const chosen = firstSources.sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0))[0];
   if (chosen) headers['x-served-from'] = (chosen.url || `${providerUrl(chosen.provider_id)}`).replace(/^https?:\/\//, '').split('/')[0];
   res.writeHead(status, headers);
   if (req.method === 'HEAD') return res.end();
-  const preferred = REHYDRATE_PROVIDER ? parseInt(REHYDRATE_PROVIDER, 10) : null;
-  const matches = (c) => wantProvider && (String(c.provider_id) === wantProvider || (c.url || '').includes(`//${wantProvider}`) || (providerUrl(c.provider_id) || '').includes(`//${wantProvider}`));
   let offset = 0, i = 0, closed = false;
   req.on('close', () => { closed = true; });
   const next = () => {
