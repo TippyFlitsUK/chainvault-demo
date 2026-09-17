@@ -55,3 +55,5 @@ python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python
 ```
 
 Manifest and payload parts are separately content addressed, as in the PRD.
+
+Proof-parameter pieces carry the file's original CID in on-chain piece metadata (`orig=<cid>` on parts, `manifest=<cid>` on the manifest), so the link from the CID a node asks for to its pieces lives in the data set itself. One custom key per piece is all that fits: filecoin-pin adds `name` and the SDK adds `ipfsRootCID`, and the contract caps a piece at three.

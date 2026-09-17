@@ -72,7 +72,7 @@ def archive_file(name, meta, workdir, state, spath):
     rec["status"] = "uploading"; save_state(spath, state)
 
     def upload(p, prec):
-        r = core.pin_add(Path(p["file"]), {"chainvault": "params", "orig": meta["cid"]}, PARAMS_PROVIDERS, PARAMS_COPIES)  # original CID on-chain: the link from the file nodes ask for to its pieces
+        r = core.pin_add(Path(p["file"]), {"orig": meta["cid"]}, PARAMS_PROVIDERS, PARAMS_COPIES)  # one custom key fits (filecoin-pin adds name, the SDK adds ipfsRootCID): the original CID, on-chain
         with core.STATE_LOCK:
             prec.update(r); prec["uploaded_at"] = core.now(); prec["degraded"] = len(r["copies"]) < PARAMS_COPIES
             save_state(spath, state)
@@ -95,7 +95,7 @@ def archive_file(name, meta, workdir, state, spath):
     }
     mdir = workdir / "params_manifests"; mdir.mkdir(exist_ok=True)
     mpath = mdir / f"{meta['cid']}.manifest.json"; mpath.write_text(json.dumps(manifest, indent=2))
-    r = core.pin_add(mpath, {"chainvault": "params-manifest", "orig": meta["cid"]}, PARAMS_PROVIDERS, PARAMS_COPIES)
+    r = core.pin_add(mpath, {"manifest": meta["cid"]}, PARAMS_PROVIDERS, PARAMS_COPIES)
     rec["manifest"] = {"path": str(mpath), "root_cid": r["root_cid"], "piece_cid": r["piece_cid"], "copies": r["copies"]}
     rec["degraded_parts"] = sum(1 for p in rec["parts"] if p.get("degraded"))
     rec["status"] = "done"; rec["completed_at"] = core.now(); save_state(spath, state)
