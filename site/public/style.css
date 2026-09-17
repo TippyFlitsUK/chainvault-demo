@@ -16,7 +16,8 @@ h1 { margin:0; font-size:26px; letter-spacing:.3px }
 .intro .card h2 { margin-bottom:6px }
 .counters { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:12px; margin:14px 0 18px }
 .counter { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px }
-.counter .n { font-size:clamp(18px,2vw,26px); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.counter .n { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.2px }
+.counter { padding:14px 14px }
 .counter .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px }
 .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px }
 .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px }

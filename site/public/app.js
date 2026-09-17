@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const fmtBytes = (b) => { if (!b) return '0 B'; const u = ['B','KB','MB','GB','TB']; let i = 0; while (b >= 1000 && i < u.length-1) { b /= 1000; i++; } return `${b.toFixed(i ? 2 : 0)} ${u[i]}`; };
+const fmtBytes = (b) => { if (!b) return '0 B'; const u = ['B','KB','MB','GB','TB']; let i = 0; while (b >= 1000 && i < u.length-1) { b /= 1000; i++; } return `${b.toFixed(i === 0 ? 0 : b >= 100 ? 1 : 2)} ${u[i]}`; };
 const fmtDur = (s) => { if (s == null) return '–'; if (s < 0) return `overdue ${fmtDur(-s)}`; if (s < 90) return `${Math.round(s)}s`; if (s < 5400) return `${Math.round(s/60)} min`; if (s < 172800) return `${(s/3600).toFixed(1)} h`; return `${(s/86400).toFixed(1)} d`; };
 const short = (c) => c ? `${c.slice(0, 10)}…${c.slice(-6)}` : '–';
 const ago = (iso) => iso ? fmtDur((Date.now() - new Date(iso).getTime())/1000) + ' ago' : '–';
