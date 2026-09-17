@@ -283,7 +283,7 @@ def archive_one(item, workdir, state, dry_run=False):
         return rec
 
     def upload(p, prec):
-        meta = {"chainvault": "snapshot"}  # cap is 3 keys per piece; filecoin-pin adds name, the SDK adds ipfsRootCID
+        meta = {"chainvault": "snapshot", "height": str(height)}  # cap is 3 keys per piece: filecoin-pin adds name, so one more fits
         r = pin_add(Path(p["file"]), meta)
         if len(r["copies"]) < COPIES:
             log(f"WARNING part {p['index']} has {len(r['copies'])} of {COPIES} copies on-chain (reduced redundancy)")
@@ -323,7 +323,7 @@ def archive_one(item, workdir, state, dry_run=False):
     mdir = workdir / "manifests"; mdir.mkdir(exist_ok=True)
     mpath = mdir / f"{name}.manifest.json"
     mpath.write_text(json.dumps(manifest, indent=2))
-    r = pin_add(mpath, {"chainvault": "manifest"})
+    r = pin_add(mpath, {"chainvault": "manifest", "height": str(height)})
     rec["manifest"] = {"path": str(mpath), "root_cid": r["root_cid"], "piece_cid": r["piece_cid"],
                        "copies": r["copies"], "parent_manifest_cid": parent_cid}
     rec["status"] = "done"
