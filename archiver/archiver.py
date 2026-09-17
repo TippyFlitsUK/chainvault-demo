@@ -367,6 +367,13 @@ def prune_onchain(state):
                 try:
                     run_pin(["rm", "--network", NETWORK, "--data-set-id", str(c["data_set_id"]), "--piece", part["piece_cid"]])
                     c["removed"] = True; c["removed_at"] = now()
+                except PinError as e:
+                    if "already scheduled for removal" in e.output:
+                        log(f"piece {part['piece_cid']} in set {c.get('data_set_id')} already scheduled for removal; treating as removed")
+                        c["removed"] = True; c["removed_at"] = now()
+                        continue
+                    failed = True
+                    log(f"prune failed for piece {part['piece_cid']} in set {c.get('data_set_id')}: {e}")
                 except Exception as e:
                     failed = True
                     log(f"prune failed for piece {part['piece_cid']} in set {c.get('data_set_id')}: {e}")
