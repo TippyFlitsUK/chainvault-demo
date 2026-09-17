@@ -128,6 +128,11 @@ def split_file(src, parts_dir, chunk):
     return parts
 
 
+class PinError(RuntimeError):
+    def __init__(self, msg, output):
+        super().__init__(msg); self.output = output
+
+
 def run_pin(args):
     cmd = [FILECOIN_PIN] + args
     tag = next((a.rsplit(".part", 1)[-1] for a in args if ".part" in a), "manifest")
@@ -141,7 +146,7 @@ def run_pin(args):
         lines.append(line)
     p.wait()
     if p.returncode != 0:
-        raise RuntimeError(f"filecoin-pin exited {p.returncode}")
+        raise PinError(f"filecoin-pin exited {p.returncode}", "\n".join(lines))
     return "\n".join(lines)
 
 
@@ -170,21 +175,53 @@ def parse_add_output(out):
 
 
 def pin_add(path, metadata):
-    args = ["add", "--network", NETWORK, "--copies", str(COPIES), "--skip-ipni-verification"]
+    """Upload with COPIES copies across PROVIDERS. If only a secondary copy fails, top up that provider alone
+    rather than re-adding everything (a full retry re-commits the primary and leaves duplicate pieces)."""
+    base = ["add", "--network", NETWORK, "--skip-ipni-verification"]
+    for k, v in metadata.items():
+        base += ["--metadata", f"{k}={v}"]
+    args = base[:1] + ["--copies", str(COPIES)] + base[1:]
     for p in PROVIDERS:
         args += ["--provider-id", p]
-    for k, v in metadata.items():
-        args += ["--metadata", f"{k}={v}"]
     args.append(str(path))
     last = None
+    result = None
     for attempt in range(1, UPLOAD_RETRIES + 1):
         try:
-            return parse_add_output(run_pin(args))
+            result = parse_add_output(run_pin(args))
+            break
+        except PinError as e:
+            last = e
+            try:
+                partial = parse_add_output(e.output)
+            except Exception:
+                partial = None
+            if partial and partial["copies"]:
+                log(f"partial success: {len(partial['copies'])} of {COPIES} copies committed; topping up the rest")
+                result = partial
+                break
+            log(f"upload attempt {attempt} failed: {e}")
+            time.sleep(30 * attempt)
         except Exception as e:
             last = e
             log(f"upload attempt {attempt} failed: {e}")
             time.sleep(30 * attempt)
-    raise last
+    if result is None:
+        raise last
+    have = {c["provider_id"] for c in result["copies"]}
+    for p in PROVIDERS:
+        if int(p) in have or len(result["copies"]) >= COPIES:
+            continue
+        for attempt in range(1, UPLOAD_RETRIES + 1):
+            try:
+                extra = parse_add_output(run_pin(base[:1] + ["--copies", "1", "--provider-id", p] + base[1:] + [str(path)]))
+                result["copies"] += [c for c in extra["copies"] if c["provider_id"] not in have]
+                have |= {c["provider_id"] for c in extra["copies"]}
+                break
+            except Exception as e:
+                log(f"top-up to provider {p} attempt {attempt} failed: {e}")
+                time.sleep(30 * attempt)
+    return result
 
 
 def known_data_sets(state):
@@ -304,6 +341,28 @@ def prune_local(workdir, state):
         if dl.exists() and s["name"] not in keep_download:
             log(f"removing local {dl}")
             dl.unlink()
+
+
+def prune_onchain(state):
+    """Remove snapshot payload pieces beyond the newest KEEP_ONCHAIN archived snapshots. Manifests stay."""
+    if KEEP_ONCHAIN <= 0:
+        return
+    done = sorted([s for s in state["snapshots"] if s["status"] == "done"], key=lambda s: s["height"])
+    for s in done[:-KEEP_ONCHAIN]:
+        log(f"pruning on-chain pieces for {s['name']} (keeping newest {KEEP_ONCHAIN})")
+        failed = False
+        for part in s["parts"]:
+            for c in part.get("copies", []):
+                if c.get("removed"):
+                    continue
+                try:
+                    run_pin(["rm", "--network", NETWORK, "--data-set-id", str(c["data_set_id"]), "--piece", part["piece_cid"]])
+                    c["removed"] = True; c["removed_at"] = now()
+                except Exception as e:
+                    failed = True
+                    log(f"prune failed for piece {part['piece_cid']} in set {c.get('data_set_id')}: {e}")
+        if not failed:
+            s["status"] = "pruned"; s["pruned_at"] = now()
 
 
 def main():

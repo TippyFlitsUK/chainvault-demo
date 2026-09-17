@@ -36,7 +36,7 @@ python3 archiver/archiver.py --dry-run && python3 archiver/archiver.py && python
 - `CV_KEEP_LOCAL` (default 1): downloaded files kept on disk.
 - `CV_FOREST_BIN` / `CV_FOREST_ARGS`: if set, every rehydration ends with `forest --import-snapshot`; `deploy/forest.sh` runs Forest from its Docker image (a calibnet import takes about 20 s). The rebuilt file is discarded afterwards.
 - `CV_REHYDRATE_PROVIDER`: provider ID the site's rehydration button and one-liner prefer; other copies are only used on failure.
-- `CV_PARALLEL` (default 4): parts uploaded concurrently; each filecoin-pin process holds one part in memory (~0.5 GB).
+- `CV_PARALLEL` (default 4, 2 on the demo box; each secondary upload must finish inside filecoin-pin's 5-minute limit): parts uploaded concurrently; each filecoin-pin process holds one part in memory (~0.5 GB).
 
 ## Deploy
 
