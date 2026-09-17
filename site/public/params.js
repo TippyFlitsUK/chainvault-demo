@@ -71,7 +71,7 @@ function render(pr, proofs, prov) {
   $('livetext').textContent = proofs?.head_epoch ? `calibnet epoch ${proofs.head_epoch.toLocaleString()} · ${ago(proofs.head_time)}` : 'no proof data yet';
 
   const cmd = `IPFS_GATEWAY=${location.origin}/ipfs/ lotus daemon`;
-  $('usebox').innerHTML = `<button class="copy">copy</button><span class="prompt">$</span><span class="kw">IPFS_GATEWAY</span>=<span class="url">${location.origin}/ipfs/</span> <span class="kw">lotus</span> daemon`;
+  $('usebox').innerHTML = `<button class="copy">copy</button><span class="prompt">$</span><span class="kw">IPFS_GATEWAY</span>=<span class="url">${location.origin}/ipfs/</span> <span class="kw">lotus</span> daemon<span class="cm"># Forest reads the same variable (it fetches only the .vk files)</span><span class="prompt">$</span><span class="kw">IPFS_GATEWAY</span>=<span class="url">${location.origin}/ipfs/</span> <span class="kw">forest</span> <span class="flag">--chain</span> calibnet`;
   const btn = $('usebox').querySelector('.copy');
   btn.onclick = async () => { try { await navigator.clipboard.writeText(cmd + '\n'); btn.textContent = 'copied'; setTimeout(() => { btn.textContent = 'copy'; }, 1500); } catch { btn.textContent = 'select & copy'; } };
 
