@@ -7,7 +7,7 @@ Archives Forest's calibnet snapshots onto Filecoin PDP storage providers, publis
 - `archiver/archiver.py` polls `forest-archive.chainsafe.dev` for the newest calibnet snapshot, downloads it, verifies the publisher's SHA256, splits it into 1000 MiB parts (the PDP piece cap is 1,065,353,216 bytes), uploads every part with `filecoin-pin add` (N copies across providers), writes a manifest linking to the previous manifest, and uploads the manifest too. State is `<workdir>/state.json`.
 - `archiver/proofs.py` reads PDPVerifier on calibnet for every data set the archive uses (live, leaf count, last proven epoch, next challenge) and writes `<workdir>/proofs.json`.
 - `archiver/rehydrate.py` pulls a snapshot back: fetches each part's CAR from a provider's `/piece/<cid>`, unpacks with `ipfs-car`, verifies part and whole-file SHA256, optionally runs `forest --import-snapshot`.
-- `site/` a dependency-free Node server plus one page: counters, snapshot list with retrieval links, proof status bars, manifest chain, and a live rehydration log (SSE). Serves `rehydrate.py` for the one-liner.
+- `site/` a dependency-free Node server: `/snapshot/<height|latest>` and `/ipfs/<cid>` stream files byte-exact out of their pieces on the SP (Range supported), so `forest --import-snapshot <url>` and `IPFS_GATEWAY=<url>` work against it; plus the pages: counters, snapshot list with retrieval links, proof status bars, manifest chain, and a live rehydration log (SSE). Serves `rehydrate.py` for the one-liner.
 
 ## Requirements
 

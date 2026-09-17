@@ -65,7 +65,7 @@ function render() {
       <div class="kv">
         <div class="k">source</div><div><a href="${s.source_url}">${s.name}</a></div>
         <div class="k">sha256</div><div><code class="cid">${s.sha256 || '–'}</code>${s.verified_at ? ` <span class="ok small">✓ matches <a href="${s.source_sha256_url}">Forest's published checksum</a></span>` : ''}</div>
-        <div class="k">manifest</div><div>${m ? `<code class="cid">${m.root_cid}</code> <a href="${gw}">gateway</a> · <a href="/api/manifest?name=${encodeURIComponent(s.name)}">json</a>` : '–'}</div>
+        <div class="k">manifest</div><div>${m ? `<code class="cid">${m.root_cid}</code> <a href="${gw}">gateway</a> · <a href="/api/manifest?name=${encodeURIComponent(s.name)}">json</a> · <a href="/snapshot/${s.height}" title="the whole snapshot streamed from the storage provider">stream</a>` : '–'}</div>
         ${s.error ? `<div class="k">error</div><div class="bad">${esc(String(s.error))}</div>` : ''}
       </div>
       ${parts.length ? `<details><summary>${parts.length} parts, ${new Set(parts.flatMap(p => (p.copies||[]).map(c => c.provider_id))).size} providers</summary>
@@ -95,14 +95,14 @@ function render() {
 
   const latest = chain[0];
   const anyProv = latest && (providers[preferred] || Object.values(providers)[0]);
-  const cmd1 = latest ? `curl -sO ${location.origin}/rehydrate.py && python3 rehydrate.py --site ${location.origin}` : '';
-  const cmd2 = latest ? `forest --chain calibnet --import-snapshot ./${latest.name}` : '';
+  const cmd1 = latest ? `forest --chain calibnet --import-snapshot ${location.origin}/snapshot/latest` : '';
+  const cmd2 = latest ? `curl -sO ${location.origin}/rehydrate.py && python3 rehydrate.py --site ${location.origin}` : '';
   const hl = (s) => esc(s)
     .replace(/(^|&amp;&amp; )(curl|python3|forest)\b/g, '$1<span class="kw">$2</span>')
     .replace(/(--[a-z-]+)/g, '<span class="flag">$1</span>')
     .replace(/(https:\/\/[^\s]+)/g, '<span class="url">$1</span>');
   $('oneliner').innerHTML = latest
-    ? `<button class="copy">copy</button><span class="prompt">$</span>${hl(cmd1)}<span class="cm"># optional: import the verified snapshot into a Forest node</span><span class="prompt">$</span>${hl(cmd2)}`
+    ? `<button class="copy">copy</button><span class="prompt">$</span>${hl(cmd1)}<span class="cm"># or fetch, checksum and reassemble it yourself first (verified against Forest's published sha256)</span><span class="prompt">$</span>${hl(cmd2)}`
     : '<span class="muted small">available once the first snapshot is archived</span>';
   const copyBtn = $('oneliner').querySelector('.copy');
   if (copyBtn) copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(`${cmd1}\n${cmd2}\n`); copyBtn.textContent = 'copied'; setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500); } catch { copyBtn.textContent = 'select & copy'; } };

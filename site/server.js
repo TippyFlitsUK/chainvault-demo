@@ -75,13 +75,11 @@ function providerUrl(id) {
   return pr ? pr.service_url.replace(/\/$/, '') : null;
 }
 
-// GET /ipfs/<original cid>: stream a proof-parameter file back out of its pieces on the SP.
-// A node sets IPFS_GATEWAY to this path and verifies the manifest digest itself, so this is byte-exact or nothing.
-function serveParam(req, res, cid) {
-  const st = readJson(PARAMS_STATE, { files: {} });
-  const f = Object.values(st.files || {}).find((x) => x.cid === cid && x.status === 'done');
-  if (!f) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not archived\n'); }
-  const parts = [...f.parts].sort((a, b) => a.index - b.index);
+// Stream a file back out of its pieces on the SP, byte-exact, with Range support. Used for
+// /ipfs/<cid> (proof parameters, what a node's IPFS_GATEWAY points at) and /snapshot/<height|latest>
+// (Forest imports straight from the URL). Nothing is cached on this box.
+function streamParts(req, res, partsIn, filename, extraHeaders) {
+  const parts = [...partsIn].sort((a, b) => a.index - b.index);
   const total = parts.reduce((a, p) => a + p.size, 0);
   let start = 0, end = total - 1, status = 200;
   const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
@@ -93,7 +91,7 @@ function serveParam(req, res, cid) {
   }
   const headers = {
     'content-type': 'application/octet-stream', 'accept-ranges': 'bytes', 'content-length': end - start + 1,
-    'x-proof-param-digest': f.digest, 'content-disposition': `inline; filename="${f.name}"`, 'cache-control': 'no-cache',
+    'content-disposition': `inline; filename="${filename}"`, 'cache-control': 'no-cache', ...extraHeaders,
   };
   if (status === 206) headers['content-range'] = `bytes ${start}-${end}/${total}`;
   res.writeHead(status, headers);
@@ -135,6 +133,21 @@ function serveParam(req, res, cid) {
   next();
 }
 
+function serveParam(req, res, cid) {
+  const st = readJson(PARAMS_STATE, { files: {} });
+  const f = Object.values(st.files || {}).find((x) => x.cid === cid && x.status === 'done');
+  if (!f) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not archived\n'); }
+  return streamParts(req, res, f.parts, f.name, { 'x-proof-param-digest': f.digest });
+}
+
+function serveSnapshot(req, res, which) {
+  const st = readJson(path.join(DATA, 'state.json'), { snapshots: [] });
+  const done = (st.snapshots || []).filter((s) => s.status === 'done' && s.manifest).sort((a, b) => b.height - a.height);
+  const s = which === 'latest' ? done[0] : done.find((x) => String(x.height) === which);
+  if (!s) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('no such archived snapshot\n'); }
+  return streamParts(req, res, s.parts, s.name, { 'x-snapshot-height': String(s.height), 'x-snapshot-sha256': s.sha256, 'x-manifest-cid': s.manifest.root_cid });
+}
+
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/state') return sendJson(res, 200, readJson(path.join(DATA, 'state.json'), { snapshots: [] }));
@@ -162,6 +175,7 @@ http.createServer((req, res) => {
     return sendJson(res, 200, readJson(path.join(DATA, 'params_manifests', `${cid}.manifest.json`), { error: 'not found' }));
   }
   if (url.pathname.startsWith('/ipfs/')) return serveParam(req, res, url.pathname.slice(6).split('/')[0]);
+  if (url.pathname.startsWith('/snapshot/')) return serveSnapshot(req, res, url.pathname.slice(10).split('/')[0]);
   if (url.pathname === '/api/rehydrate/start' && req.method === 'POST') return startRehydrate(req, res);
   if (url.pathname === '/api/rehydrate/stream') return streamLog(req, res);
   if (url.pathname === '/api/rehydrate/status') return sendJson(res, 200, { running: !!runningPid(), pid: runningPid() });
