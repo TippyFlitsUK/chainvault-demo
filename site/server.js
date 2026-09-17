@@ -68,6 +68,7 @@ function streamLog(req, res) {
     for (const line of buf.toString('utf8').split('\n')) if (line) res.write(`data: ${JSON.stringify(line)}\n\n`);
   };
   send();
+  res.write(`event: live\ndata: ${JSON.stringify({ running: !!runningPid() })}\n\n`);  // end of replay; the page decides whether to show it
   const t = setInterval(() => { send(); res.write(`: ping ${runningPid() ? 'running' : 'idle'}\n\n`); }, 1000);
   req.on('close', () => clearInterval(t));
 }

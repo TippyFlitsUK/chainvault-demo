@@ -108,37 +108,22 @@ function render() {
   if (copyBtn) copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(`${cmd1}\n${cmd2}\n`); copyBtn.textContent = 'copied'; setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500); } catch { copyBtn.textContent = 'select & copy'; } };
 }
 
-let logLines = [];
-function clearedMarker() { try { return JSON.parse(localStorage.getItem('cv_cleared') || 'null'); } catch { return null; } }
-const esc = (s) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
-function logClass(line) {
-  if (/MISMATCH|Traceback|RuntimeError|Error|ERROR|failed|exited [1-9]/.test(line)) return 'l-bad';
-  if (/WARN/.test(line)) return 'l-warn';
-  if (/SNAPSHOT VERIFIED|Imported snapshot in|sha256 OK|forest exited 0/.test(line)) return 'l-ok';
-  if (/^\[[\d:]+\] \$ |^\s+\$ /.test(line)) return 'l-cmd';
-  if (/forest::|f3\/sidecar|libp2p/.test(line)) return 'l-forest';
-  if (/GET https|fetching|assembling|verifying|manifest:/.test(line)) return 'l-step';
-  return '';
-}
-function colourLine(line) {
-  const m = line.match(/^(\[[\d:]+\])(.*)$/s);
-  const body = m ? m[2] : line;
-  const stamp = m ? `<span class="l-ts">${esc(m[1])}</span>` : '';
-  return `<span class="${logClass(line)}">${stamp}${esc(body)}</span>`;
-}
+let logLines = [], live = false;
+const PLACEHOLDER = 'Press Run rehydration to pull the latest snapshot back from the storage providers, verify it, and import it into a Forest node, live.';
 function renderLog() {
-  const c = clearedMarker();
-  const skip = c && logLines[0] === c.runId ? c.count : 0;
   const log = $('log');
-  log.innerHTML = logLines.slice(skip).map(colourLine).join('\n') + (logLines.length > skip ? '\n' : '');
+  if (!live) { log.innerHTML = `<span class="l-ts">${esc(PLACEHOLDER)}</span>`; return; }
+  log.innerHTML = logLines.map(colourLine).join('\n') + (logLines.length ? '\n' : '');
   log.scrollTop = log.scrollHeight;
 }
 
 function stream() {
   const es = new EventSource('/api/rehydrate/stream');
-  es.onopen = () => { logLines = []; renderLog(); $('runstatus').textContent = ''; };
-  es.onmessage = (e) => { logLines.push(JSON.parse(e.data)); renderLog(); };
-  es.addEventListener('reset', () => { logLines = []; try { localStorage.removeItem('cv_cleared'); } catch {} renderLog(); });
+  es.onopen = () => { logLines = []; live = false; renderLog(); $('runstatus').textContent = ''; };
+  es.onmessage = (e) => { logLines.push(JSON.parse(e.data)); if (live) renderLog(); };
+  // the replay of the previous run is only shown when that run is still in progress
+  es.addEventListener('live', (e) => { live = !!JSON.parse(e.data).running; if (!live) logLines = []; renderLog(); });
+  es.addEventListener('reset', () => { logLines = []; live = true; renderLog(); });
   es.onerror = () => { $('runstatus').textContent = 'stream disconnected, retrying'; };
 }
 
@@ -147,15 +132,12 @@ $('run').onclick = async () => {
   const r = await fetch('/api/rehydrate/start', { method: 'POST', headers: { authorization: `Bearer ${$('token').value}` } });
   const j = await r.json();
   $('runstatus').textContent = r.ok ? 'running' : (j.error || 'failed');
-  try { localStorage.removeItem('cv_cleared'); } catch {}
-  logLines = []; renderLog(); setTimeout(() => { $('run').disabled = false; }, 3000);
+  if (r.ok) { logLines = []; live = true; renderLog(); }
+  setTimeout(() => { $('run').disabled = false; }, 3000);
 };
 $('showall').onclick = () => { showAll = !showAll; render(); };
 $('showallchain').onclick = () => { showAllChain = !showAllChain; render(); };
-$('clear').onclick = () => {
-  try { localStorage.setItem('cv_cleared', JSON.stringify({ runId: logLines[0] || '', count: logLines.length })); } catch {}
-  renderLog(); $('runstatus').textContent = '';
-};
+$('clear').onclick = () => { logLines = []; live = false; renderLog(); $('runstatus').textContent = ''; };
 
 load().catch(e => { $('livetext').textContent = 'load failed: ' + e.message; });
 setInterval(() => load().catch(() => {}), 30000);
