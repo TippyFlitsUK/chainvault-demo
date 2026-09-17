@@ -15,7 +15,7 @@ const REHYDRATE_PROVIDER = process.env.CV_REHYDRATE_PROVIDER || '';
 const REHYDRATE_LOG = path.join(DATA, 'rehydrate.log');
 const PARAMS_STATE = path.join(DATA, 'params_state.json');
 const IPFS_CACHE = path.join(DATA, 'ipfs_cache.json');
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, HEAD, OPTIONS', 'access-control-allow-headers': 'Range, Content-Type', 'access-control-expose-headers': 'Content-Length, Content-Range, Accept-Ranges, X-Proof-Param-Digest, X-Snapshot-Height, X-Snapshot-Sha256, X-Manifest-Cid' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, HEAD, OPTIONS', 'access-control-allow-headers': 'Range, Content-Type', 'access-control-expose-headers': 'Content-Length, Content-Range, Accept-Ranges, X-Proof-Param-Digest, X-Snapshot-Height, X-Snapshot-Sha256, X-Manifest-Cid, X-Served-From' };
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
@@ -80,7 +80,7 @@ function providerUrl(id) {
 // Stream a file back out of its pieces on the SP, byte-exact, with Range support. Used for
 // /ipfs/<cid> (proof parameters, what a node's IPFS_GATEWAY points at) and /snapshot/<height|latest>
 // (Forest imports straight from the URL). Nothing is cached on this box.
-function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf) {
+function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf, wantProvider) {
   sourcesOf = sourcesOf || ((part) => (part.copies || []).map((c) => ({ provider_id: c.provider_id, url: providerUrl(c.provider_id) ? `${providerUrl(c.provider_id)}/piece/${part.piece_cid}` : null })).filter((x) => x.url));
   const parts = [...partsIn].sort((a, b) => a.index - b.index);
   const total = parts.reduce((a, p) => a + p.size, 0);
@@ -97,9 +97,14 @@ function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf) {
     'content-disposition': `inline; filename="${filename}"`, 'cache-control': 'no-cache', ...CORS, ...extraHeaders,
   };
   if (status === 206) headers['content-range'] = `bytes ${start}-${end}/${total}`;
+  const firstSources = parts.length ? sourcesOf(parts[0]).filter((c) => !wantProvider || matches(c)) : [];
+  if (wantProvider && !firstSources.length) { res.writeHead(404, { 'content-type': 'text/plain', ...CORS }); return res.end(`provider ${wantProvider} does not hold this content\n`); }
+  const chosen = firstSources.sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0))[0];
+  if (chosen) headers['x-served-from'] = (chosen.url || `${providerUrl(chosen.provider_id)}`).replace(/^https?:\/\//, '').split('/')[0];
   res.writeHead(status, headers);
   if (req.method === 'HEAD') return res.end();
   const preferred = REHYDRATE_PROVIDER ? parseInt(REHYDRATE_PROVIDER, 10) : null;
+  const matches = (c) => wantProvider && (String(c.provider_id) === wantProvider || (c.url || '').includes(`//${wantProvider}`) || (providerUrl(c.provider_id) || '').includes(`//${wantProvider}`));
   let offset = 0, i = 0, closed = false;
   req.on('close', () => { closed = true; });
   const next = () => {
@@ -108,7 +113,8 @@ function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf) {
     const part = parts[i++];
     const pStart = offset, pEnd = offset + part.size - 1; offset += part.size;
     if (pEnd < start) return next();
-    const copies = sourcesOf(part).sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0));
+    let copies = sourcesOf(part).sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0));
+    if (wantProvider) copies = copies.filter(matches);  // an explicit choice is honoured strictly: no silent fallback to another provider
     const tryCopy = (k) => {
       if (k >= copies.length) { res.destroy(new Error(`no provider served part ${part.index}`)); return; }
       const up = https.get(copies[k].url, { headers: { 'user-agent': 'chainvault-site/0.1', accept: 'application/vnd.ipld.car, */*' } }, (r) => {
@@ -169,11 +175,11 @@ function probeCar(url, cb) {
     leaves.on('error', cb);
   }).on('error', cb);
 }
-function serveIpni(req, res, cid) {
+function serveIpni(req, res, cid, wantProvider) {
   const cache = readJson(IPFS_CACHE, {});
   const go = (entry) => {
     const part = { index: 0, size: entry.size, copies: entry.sources.map((u, i) => ({ provider_id: -1 - i, url: u })) };
-    return streamParts(req, res, [part], cid, { 'content-type': entry.type }, (p) => p.copies.map((c) => ({ provider_id: c.provider_id, url: `${c.url}/ipfs/${cid}` })));
+    return streamParts(req, res, [part], cid, { 'content-type': entry.type }, (p) => p.copies.map((c) => ({ provider_id: c.provider_id, url: `${c.url}/ipfs/${cid}` })), wantProvider);
   };
   if (cache[cid]) return go(cache[cid]);
   ipniLookup(cid, (err, urls) => {
@@ -192,11 +198,11 @@ function serveIpni(req, res, cid) {
   });
 }
 
-function serveParam(req, res, cid) {
+function serveParam(req, res, cid, wantProvider) {
   const st = readJson(PARAMS_STATE, { files: {} });
   const f = Object.values(st.files || {}).find((x) => x.cid === cid && x.status === 'done');
-  if (!f) return serveIpni(req, res, cid);
-  return streamParts(req, res, f.parts, f.name, { 'x-proof-param-digest': f.digest });
+  if (!f) return serveIpni(req, res, cid, wantProvider);
+  return streamParts(req, res, f.parts, f.name, { 'x-proof-param-digest': f.digest }, undefined, wantProvider);
 }
 
 function serveSnapshot(req, res, which) {
@@ -234,7 +240,7 @@ http.createServer((req, res) => {
     return sendJson(res, 200, readJson(path.join(DATA, 'params_manifests', `${cid}.manifest.json`), { error: 'not found' }));
   }
   if ((url.pathname.startsWith('/ipfs/') || url.pathname.startsWith('/snapshot/')) && req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
-  if (url.pathname.startsWith('/ipfs/')) { const cid = url.pathname.slice(6).split('/')[0]; if (!/^[A-Za-z0-9]{10,}$/.test(cid)) { res.writeHead(400); return res.end('bad cid'); } return serveParam(req, res, cid); }
+  if (url.pathname.startsWith('/ipfs/')) { const cid = url.pathname.slice(6).split('/')[0]; if (!/^[A-Za-z0-9]{10,}$/.test(cid)) { res.writeHead(400); return res.end('bad cid'); } return serveParam(req, res, cid, (url.searchParams.get('provider') || '').replace(/[^A-Za-z0-9.\-]/g, '') || null); }
   if (url.pathname.startsWith('/snapshot/')) return serveSnapshot(req, res, url.pathname.slice(10).split('/')[0]);
   if (url.pathname === '/api/rehydrate/start' && req.method === 'POST') return startRehydrate(req, res);
   if (url.pathname === '/api/rehydrate/stream') return streamLog(req, res);
