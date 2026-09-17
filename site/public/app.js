@@ -4,7 +4,8 @@ const fmtDur = (s) => { if (s == null) return '–'; if (s < 0) return `overdue 
 const short = (c) => c ? `${c.slice(0, 10)}…${c.slice(-6)}` : '–';
 const ago = (iso) => iso ? fmtDur((Date.now() - new Date(iso).getTime())/1000) + ' ago' : '–';
 
-let providers = {}, proofs = null, state = null, preferred = null, showAll = false;
+let providers = {}, proofs = null, state = null, preferred = null, showAll = false, showAllChain = false;
+const CHAIN_VISIBLE = 2;
 const DEFAULT_VISIBLE = 6;
 
 async function load() {
@@ -85,7 +86,10 @@ function render() {
     : '<div class="muted">No data sets yet.</div>';
 
   const chain = done.sort((a, b) => b.height - a.height);
-  $('chain-view').innerHTML = chain.length ? `<div class="chainlist">${chain.map((s, i) => `<div class="link"><b>height ${s.height.toLocaleString()}</b><br><code class="cid">${s.manifest.root_cid}</code><br><span class="muted">parent: ${s.manifest.parent_manifest_cid ? short(s.manifest.parent_manifest_cid) : 'genesis of this archive'}</span></div>${i < chain.length - 1 ? '<div class="arrow">↓ parent_manifest_cid</div>' : ''}`).join('')}</div>` : '<div class="muted small">Nothing yet.</div>';
+  const chainShown = showAllChain ? chain : chain.slice(0, CHAIN_VISIBLE);
+  $('showallchain').hidden = chain.length <= CHAIN_VISIBLE;
+  $('showallchain').textContent = showAllChain ? `show newest ${CHAIN_VISIBLE}` : `show all ${chain.length}`;
+  $('chain-view').innerHTML = chain.length ? `<div class="chainlist">${chainShown.map((s, i) => `<div class="link"><b>height ${s.height.toLocaleString()}</b><br><code class="cid">${s.manifest.root_cid}</code><br><span class="muted">parent: ${s.manifest.parent_manifest_cid ? short(s.manifest.parent_manifest_cid) : 'genesis of this archive'}</span></div>${i < chainShown.length - 1 ? '<div class="arrow">↓ parent_manifest_cid</div>' : (chainShown.length < chain.length ? `<div class="arrow">↓ ${chain.length - chainShown.length} older manifest${chain.length - chainShown.length === 1 ? '' : 's'}</div>` : '')}`).join('')}</div>` : '<div class="muted small">Nothing yet.</div>';
 
   const latest = chain[0];
   const anyProv = latest && (providers[preferred] || Object.values(providers)[0]);
@@ -145,6 +149,7 @@ $('run').onclick = async () => {
   logLines = []; renderLog(); setTimeout(() => { $('run').disabled = false; }, 3000);
 };
 $('showall').onclick = () => { showAll = !showAll; render(); };
+$('showallchain').onclick = () => { showAllChain = !showAllChain; render(); };
 $('clear').onclick = () => {
   try { localStorage.setItem('cv_cleared', JSON.stringify({ runId: logLines[0] || '', count: logLines.length })); } catch {}
   renderLog(); $('runstatus').textContent = '';
