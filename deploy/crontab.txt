@@ -3,3 +3,4 @@
 */5  * * * * set -a && . /home/tippyflits/chainvault-demo/deploy/chainvault.env && set +a && python3 /home/tippyflits/chainvault-demo/archiver/proofs.py >> /home/tippyflits/chainvault/proofs.log 2>&1
 */20 * * * * set -a && . /home/tippyflits/chainvault-demo/deploy/chainvault.env && set +a && python3 /home/tippyflits/chainvault-demo/archiver/params_archiver.py >> /home/tippyflits/chainvault/params.log 2>&1
 */30 * * * * set -a && . /home/tippyflits/chainvault-demo/deploy/chainvault.env && set +a && python3 /home/tippyflits/chainvault-demo/archiver/dedupe.py --data-set 13956 --retire-cron >> /home/tippyflits/chainvault/dedupe.log 2>&1
+17 * * * * find /tmp -maxdepth 1 -user tippyflits -name "filecoin-pin-add-*.car" -mmin +120 -delete
