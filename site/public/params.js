@@ -19,12 +19,23 @@ function familyOf(name) {
 const shortName = (n) => n.replace(/^v28-/, '').replace(/-[0-9a-f]{64}(\.params|\.vk)$/, '$1');
 let showList = false, filesCache = [], providersCache = {};
 
+function spLink(f) {
+  // a done file links to where it actually lives: the provider's piece for a single-piece file,
+  // the manifest (which lists every piece's provider URL) for a multi-piece one
+  const parts = f.parts || [];
+  if (parts.length === 1 && parts[0].piece_cid) {
+    const c = (parts[0].copies || [])[0]; const pr = c && providersCache[c.provider_id];
+    if (pr) return `${pr.service_url.replace(/\/$/, '')}/piece/${parts[0].piece_cid}`;
+  }
+  return `/api/params-manifest?cid=${f.cid}`;
+}
 function chip(f) {
   const kind = f.name.endsWith('.vk') ? 'vk' : 'params';
   const st = f.status || 'pending';
-  const title = `${f.name}\n${f.cid}\n${fmtBytes(f.size)} · ${st}${f.parts && f.parts.length ? ` · ${f.parts.filter(p => p.piece_cid).length}/${f.parts.length} pieces` : ''}${f.error ? '\n' + f.error : ''}`;
+  const parts = f.parts || [];
+  const title = `${f.name}\n${f.cid}\n${fmtBytes(f.size)} · ${st}${parts.length ? ` · ${parts.filter(p => p.piece_cid).length}/${parts.length} piece${parts.length === 1 ? '' : 's'}` : ''}${st === 'done' ? (parts.length === 1 ? '\nopens the piece on the storage provider' : '\nopens the manifest listing every piece on the storage provider') : ''}${f.error ? '\n' + f.error : ''}`;
   const inner = `<b>.${kind}</b><span>${fmtBytes(f.size)}</span>`;
-  return st === 'done' ? `<a class="chip done" href="/ipfs/${esc(f.cid)}" title="${esc(title)}">${inner}</a>` : `<span class="chip ${esc(st)}" title="${esc(title)}">${inner}</span>`;
+  return st === 'done' ? `<a class="chip done" href="${esc(spLink(f))}" title="${esc(title)}">${inner}</a>` : `<span class="chip ${esc(st)}" title="${esc(title)}">${inner}</span>`;
 }
 
 function render(pr, proofs, prov) {
@@ -84,7 +95,7 @@ function renderList() {
   const rows = [...filesCache].sort((a, b) => (b.size || 0) - (a.size || 0));
   $('filelist').innerHTML = `<div class="filelist"><table><tr><th>file</th><th>sector</th><th>size</th><th>status</th><th>pieces</th><th>provider</th><th></th></tr>${rows.map(f => {
     const pv = (f.parts || [])[0]?.copies?.map(c => providersCache[c.provider_id]?.name || `provider ${c.provider_id}`).join(', ') || '–';
-    const links = f.status === 'done' ? `<a href="/ipfs/${esc(f.cid)}">download</a> · <a href="/api/params-manifest?cid=${esc(f.cid)}">manifest</a>` : (f.error ? `<span class="bad">${esc(f.error).slice(0, 70)}</span>` : '');
+    const links = f.status === 'done' ? `<a href="${esc(spLink(f))}">on the provider</a> · <a href="/api/params-manifest?cid=${esc(f.cid)}">manifest</a> · <a href="/ipfs/${esc(f.cid)}">via vault</a>` : (f.error ? `<span class="bad">${esc(f.error).slice(0, 70)}</span>` : '');
     return `<tr><td class="mono name" title="${esc(f.name)}&#10;${esc(f.cid)}">${esc(shortName(f.name))}</td><td>${sectorLabel(f.sector_size)}</td><td>${fmtBytes(f.size)}</td><td><span class="chip ${esc(f.status || 'pending')}">${esc(f.status || 'pending')}</span></td><td>${(f.parts || []).length || '–'}</td><td>${esc(pv)}</td><td>${links}</td></tr>`;
   }).join('')}</table></div>`;
 }
