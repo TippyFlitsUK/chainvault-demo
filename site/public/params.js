@@ -51,12 +51,6 @@ function render(pr, proofs, prov) {
   $('c-bytes').textContent = `${fmtBytes(doneBytes)} / ${fmtBytes(totalBytes)}`;
   $('c-pieces').textContent = pieces;
   const running = files.filter(f => ['downloading', 'splitting', 'uploading'].includes(f.status));
-  if (running.length) {
-    const r = running[0]; const up = (r.parts || []).filter(p => p.piece_cid).length; const n = (r.parts || []).length;
-    $('c-inprogress').textContent = r.status === 'uploading' && n ? `${up} / ${n} pieces` : r.status;
-    $('l-inprogress').textContent = shortName(r.name).slice(0, 34);
-    $('c-inprogress').title = r.name;
-  } else { $('c-inprogress').textContent = 'idle'; $('l-inprogress').textContent = 'in progress'; }
   const price = proofs?.pricing?.price_per_tib_month_usdfc;
   $('c-cost').textContent = price && totalBytes ? ((totalBytes * copies / 1099511627776) * price).toFixed(3) : '–';
   $('c-cost').title = price ? `${price} USDFC per TiB per month on-chain, ${copies.toFixed(0)} cop${copies > 1 ? 'ies' : 'y'}, whole ${fmtBytes(totalBytes)} set` : '';
