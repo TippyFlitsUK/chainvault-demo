@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⛓ ChainVault · load from any provider</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">⛓</div>
+    <div>
+      <h1>ChainVault</h1>
+      <div class="sub">Load a file straight from any Filecoin provider that holds it, verify it, query it. Nothing in between.</div>
+    </div>
+  </div>
+  <div class="pill ok"><span class="dot"></span><span>runs entirely in your browser</span></div>
+</header>
+<nav class="tabs"><a href="/">Snapshots</a><a href="/params.html">Proof parameters</a><a class="active" href="/query.html">Load from any provider</a></nav>
+
+<section class="intro">
+  <div class="card"><h2>How it works</h2><p>Paste a CID. The page asks the IPNI index which Filecoin storage providers hold it, and you pick one. Your browser fetches that provider's CAR directly, checks every block's hash against its CID, and hands the bytes to DuckDB running in the page. Pick another provider and run the same query: same rows, same hash.</p></div>
+  <div class="card"><h2>Why</h2><p>No gateway, no vendor, no server of ours. The provider proves on-chain that it still holds the data; the verification here happens on your machine. Any provider that has the CID will do.</p></div>
+</section>
+
+<section class="card">
+  <div class="row">
+    <input id="cid" type="text" placeholder="CID, e.g. bafkrei…" value="bafkreid2m2lrzvsevlqtqw5cppv7idyjb62rww4uhczl4arczgury662he" style="flex:1; min-width:420px; font-family:ui-monospace,Menlo,Consolas,monospace">
+    <button id="find">Find providers</button>
+    <span id="findstatus" class="muted small"></span>
+  </div>
+  <div id="providers" class="providers"></div>
+</section>
+
+<section class="grid">
+  <div class="card wide" id="loadcard" hidden>
+    <h2>Loaded <span class="muted" id="loadedfrom"></span></h2>
+    <div class="kv">
+      <div class="k">bytes</div><div id="l-bytes">–</div>
+      <div class="k">blocks verified</div><div id="l-blocks">–</div>
+      <div class="k">sha256</div><div><code class="cid" id="l-sha">–</code></div>
+      <div class="k">fetched in</div><div id="l-time">–</div>
+    </div>
+    <div id="compare" class="small" style="margin-top:8px"></div>
+  </div>
+  <div class="card wide" id="sqlcard" hidden>
+    <h2>Query <span class="muted">DuckDB, in this page</span></h2>
+    <textarea id="sql" rows="3" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:#05080c; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:10px">SELECT * FROM read_parquet('data.parquet') LIMIT 10</textarea>
+    <div class="row" style="margin-top:8px"><button id="run">Run</button><span id="sqlstatus" class="muted small"></span></div>
+    <div style="overflow-x:auto"><table id="results" class="params-table"></table></div>
+  </div>
+</section>
+
+<footer><span>IPNI: cid.contact · DuckDB WASM 1.33.1-dev57.0</span><span>verification: sha256 of every CAR block against its CID, in your browser</span></footer>
+<script type="module" src="query.js"></script>
+</body>
+</html>
