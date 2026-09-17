@@ -38,7 +38,7 @@ async function load() {
   $('files').innerHTML = `<tr><th>file</th><th>sector</th><th>size</th><th>status</th><th>pieces</th><th>provider</th><th>original CID</th><th></th></tr>` + files.map(f => {
     const pv = (f.parts || [])[0]?.copies?.map(c => providers[c.provider_id]?.name || `provider ${c.provider_id}`).join(', ') || '–';
     const tag = `<span class="tag ${esc(f.status || 'pending')}">${esc(f.status || 'pending')}</span>${f.degraded_parts ? ` <span class="tag warn-tag">reduced redundancy</span>` : ''}`;
-    const links = f.status === 'done' ? `<a href="/ipfs/${esc(f.cid)}">download via vault</a> · <a href="/api/params-manifest?name=${encodeURIComponent(f.name)}">manifest</a>` : (f.error ? `<span class="bad small">${esc(f.error).slice(0, 80)}</span>` : '');
+    const links = f.status === 'done' ? `<a href="/ipfs/${esc(f.cid)}">download via vault</a> · <a href="/api/params-manifest?cid=${esc(f.cid)}">manifest</a>` : (f.error ? `<span class="bad small">${esc(f.error).slice(0, 80)}</span>` : '');
     return `<tr><td class="name" title="${esc(f.name)}">${esc(shortName(f.name))}</td><td>${sector(f.sector_size)}</td><td>${fmtBytes(f.size)}</td><td>${tag}</td><td>${(f.parts || []).length || '–'}</td><td>${esc(pv)}</td><td><code class="cid">${esc(f.cid)}</code></td><td>${links}</td></tr>`;
   }).join('');
 }

@@ -52,7 +52,10 @@ def archive_file(name, meta, workdir, state, spath):
     url = MIRROR + meta["cid"]
     size = rec.get("size") or head_size(url)
     rec["size"] = size; rec["source_url"] = url
-    dl = workdir / "params_downloads" / name
+    # files are downloaded, split and manifested under the CID, not the name: filecoin-pin stores the upload's
+    # file name as piece metadata and the contract caps a metadata value at 96 characters, which the parameter
+    # names exceed once a part suffix is added
+    dl = workdir / "params_downloads" / meta["cid"]
     core.download(url, dl, size)
     core.log(f"verifying blake2b digest of {name}")
     got = blake2b16_file(dl)
@@ -60,7 +63,7 @@ def archive_file(name, meta, workdir, state, spath):
         dl.unlink(missing_ok=True)
         raise RuntimeError(f"digest mismatch {got} != {meta['digest']}")
     rec["verified_at"] = core.now(); rec["status"] = "splitting"; save_state(spath, state)
-    parts = core.split_file(dl, workdir / "params_parts" / name, core.CHUNK)
+    parts = core.split_file(dl, workdir / "params_parts" / meta["cid"], core.CHUNK)
     rec["parts"] = [{k: v for k, v in p.items() if k != "file"} for p in parts]
     for prec in rec["parts"]:
         old = previous_parts.get(prec["sha256"])
@@ -91,13 +94,13 @@ def archive_file(name, meta, workdir, state, spath):
         "created_at": core.now(),
     }
     mdir = workdir / "params_manifests"; mdir.mkdir(exist_ok=True)
-    mpath = mdir / f"{name}.manifest.json"; mpath.write_text(json.dumps(manifest, indent=2))
+    mpath = mdir / f"{meta['cid']}.manifest.json"; mpath.write_text(json.dumps(manifest, indent=2))
     r = core.pin_add(mpath, {"chainvault": "params-manifest"}, PARAMS_PROVIDERS, PARAMS_COPIES)
     rec["manifest"] = {"path": str(mpath), "root_cid": r["root_cid"], "piece_cid": r["piece_cid"], "copies": r["copies"]}
     rec["degraded_parts"] = sum(1 for p in rec["parts"] if p.get("degraded"))
     rec["status"] = "done"; rec["completed_at"] = core.now(); save_state(spath, state)
     core.log(f"archived {name} ({size/1e9:.2f} GB, {len(parts)} parts): manifest {r['root_cid']}")
-    dl.unlink(missing_ok=True); shutil.rmtree(workdir / "params_parts" / name, ignore_errors=True)
+    dl.unlink(missing_ok=True); shutil.rmtree(workdir / "params_parts" / meta["cid"], ignore_errors=True)
 
 
 def main():
@@ -135,7 +138,7 @@ def main():
         except Exception as e:
             rec = state["files"][n]; rec["status"] = "failed"; rec["error"] = str(e); rec["failed_at"] = core.now()
             save_state(spath, state); core.log(f"FAILED {n}: {e}")
-            shutil.rmtree(workdir / "params_parts" / n, ignore_errors=True)
+            shutil.rmtree(workdir / "params_parts" / manifest[n]["cid"], ignore_errors=True)
         done_now += 1
         if a.max_files and done_now >= a.max_files:
             break

@@ -157,9 +157,9 @@ http.createServer((req, res) => {
     return sendJson(res, 200, { updated_at: st.updated_at, manifest_url: st.manifest_url, mirror: st.mirror, manifest_entries: st.manifest_entries, files });
   }
   if (url.pathname === '/api/params-manifest') {
-    const name = url.searchParams.get('name') || '';
-    if (!/^[A-Za-z0-9_.\-]+$/.test(name)) return sendJson(res, 400, { error: 'bad name' });
-    return sendJson(res, 200, readJson(path.join(DATA, 'params_manifests', `${name}.manifest.json`), { error: 'not found' }));
+    const cid = url.searchParams.get('cid') || '';
+    if (!/^[A-Za-z0-9]+$/.test(cid)) return sendJson(res, 400, { error: 'bad cid' });
+    return sendJson(res, 200, readJson(path.join(DATA, 'params_manifests', `${cid}.manifest.json`), { error: 'not found' }));
   }
   if (url.pathname.startsWith('/ipfs/')) return serveParam(req, res, url.pathname.slice(6).split('/')[0]);
   if (url.pathname === '/api/rehydrate/start' && req.method === 'POST') return startRehydrate(req, res);
