@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>⛓ ChainVault · verify &amp; query</title>
+<script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
@@ -16,7 +17,9 @@
       <div class="sub">Fetch a file from any Filecoin provider that holds it, verify every block, query it in the browser</div>
     </div>
   </div>
+  <div class="headright">
   <div class="pill ok"><span class="dot"></span><span>runs entirely in your browser</span></div>
+  </div>
 </header>
 <nav class="tabs"><a href="/">Snapshots</a><a href="/params.html">Proof parameters</a><a class="active" href="/query.html">Verify &amp; query</a></nav>
 
@@ -42,7 +45,7 @@
   </div>
   <div class="card wide" id="sqlcard">
     <h2>3 · Query <span class="muted small">DuckDB running in this page, against the copy loaded last</span></h2>
-    <textarea id="sql" rows="3" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:#05080c; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:10px">SELECT * FROM read_parquet('data.parquet') LIMIT 10</textarea>
+    <textarea id="sql" rows="3" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:var(--term); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:10px">SELECT * FROM read_parquet('data.parquet') LIMIT 10</textarea>
     <div class="row" style="margin-top:8px"><button id="run" disabled>Run</button><span id="sqlstatus" class="muted small">load a copy first; results appear here</span></div>
     <div style="overflow-x:auto"><table id="results" class="params-table"><tr><th>date</th><th>transactions</th><th>onboarded_pibs</th><th>…</th></tr><tr><td colspan="4" class="muted">–</td></tr></table></div>
   </div>
