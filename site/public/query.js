@@ -32,10 +32,12 @@ function cidDigestHex(cid) {  // base32 CIDv1 -> multihash digest hex
   const u = new Uint8Array(out); let p = 0, x; [x, p] = varint(u, p); [x, p] = varint(u, p); [x, p] = varint(u, p); let ml; [ml, p] = varint(u, p);
   return hex(u.subarray(p, p + ml));
 }
+const place = (loc) => { const m = Object.fromEntries((loc || '').split(';').map((kv) => kv.split('=')).filter((x) => x.length === 2)); return [m.L, m.ST, m.C].filter(Boolean).join(', '); };
 
-// --- providers via IPNI ------------------------------------------------------------------------
+// --- 1. providers via IPNI ---------------------------------------------------------------------
 async function findProviders() {
-  const cid = $('cid').value.trim(); $('findstatus').textContent = 'asking cid.contact…'; $('providers').innerHTML = '';
+  const cid = $('cid').value.trim(); $('findstatus').textContent = 'asking cid.contact…'; $('providers').innerHTML = ''; loads = {};
+  $('loadcard').hidden = true; $('sqlcard').hidden = true;
   try {
     const r = await fetch(`https://cid.contact/cid/${cid}`, { headers: { accept: 'application/json' } });
     if (r.status === 404) { $('findstatus').textContent = 'no provider in IPNI holds this CID'; return; }
@@ -44,15 +46,26 @@ async function findProviders() {
     for (const pr of (j.MultihashResults?.[0]?.ProviderResults || [])) for (const a of (pr.Provider?.Addrs || [])) { const m = /^\/dns4?6?\/([^/]+)\/tcp\/(\d+)\/(https?)$/.exec(a); if (m) hosts.add(`${m[3]}://${m[1]}${(m[3] === 'https' && m[2] === '443') ? '' : ':' + m[2]}`); }
     if (!hosts.size) { $('findstatus').textContent = 'providers found but none with an HTTPS address'; return; }
     $('findstatus').textContent = `${hosts.size} provider${hosts.size === 1 ? '' : 's'} hold this CID`;
-    $('providers').innerHTML = [...hosts].map((h) => { const host = h.replace(/^https?:\/\//, ''); const known = Object.values(knownProviders).find((p) => (p.service_url || '').includes(host)); return `<div class="provcard"><div><b>${esc(known ? known.name : host)}</b><div class="muted small">${esc(host)}${known ? ' · ' + esc(known.location) : ''}</div></div><button data-host="${esc(h)}">Load from this provider</button><span class="muted small" data-status="${esc(h)}"></span></div>`; }).join('');
+    $('providers').innerHTML = [...hosts].map((h) => {
+      const host = h.replace(/^https?:\/\//, ''); const known = Object.values(knownProviders).find((p) => (p.service_url || '').includes(host));
+      return `<div class="provcard"><div class="pname">${esc(known ? known.name : host)}</div><div class="phost">${esc(host)}</div><div class="ploc">${known ? esc(place(known.location)) : '&nbsp;'}</div><button data-host="${esc(h)}">Load from this provider</button><div class="pstatus" data-status="${esc(h)}"></div></div>`;
+    }).join('');
     for (const b of $('providers').querySelectorAll('button')) b.onclick = () => loadFrom(b.dataset.host, cid);
   } catch (e) { $('findstatus').textContent = 'lookup failed: ' + e.message; }
 }
 
-// --- load + verify + register with DuckDB ------------------------------------------------------
+// --- 2. load + verify --------------------------------------------------------------------------
+function renderLoads() {
+  const entries = Object.entries(loads); if (!entries.length) return;
+  const shas = new Set(entries.map(([, l]) => l.sha)); const first = entries[0][1].sha;
+  $('loadcard').hidden = false;
+  $('verdict').className = 'verdict ' + (shas.size === 1 ? 'ok' : 'bad');
+  $('verdict').textContent = entries.length < 2 ? `Loaded from ${entries[0][0]}. Load from another provider to compare.` : shas.size === 1 ? `✓ ${entries.length} providers, one identical file: every copy hashes to ${first.slice(0, 16)}…` : `✗ copies differ: ${[...shas].map((x) => x.slice(0, 12)).join(' vs ')}`;
+  $('loads').innerHTML = `<tr><th>provider</th><th>bytes</th><th>blocks verified</th><th>sha256</th><th>fetched</th><th>match</th></tr>` + entries.map(([h, l]) => `<tr><td>${esc(h)}</td><td>${fmt(l.bytes)}</td><td>${l.verified} / ${l.blocks}${l.rootSeen ? ' <span class="muted">· CID present</span>' : ''}</td><td class="mono">${l.sha}</td><td>${l.ms} ms</td><td class="${l.sha === first ? 'ok' : 'bad'}">${entries.length < 2 ? '–' : l.sha === first ? '✓ identical' : '✗ differs'}</td></tr>`).join('');
+}
 async function loadFrom(base, cid) {
   const status = document.querySelector(`[data-status="${base}"]`); const host = base.replace(/^https?:\/\//, '');
-  status.textContent = 'fetching CAR…'; const t0 = performance.now();
+  status.className = 'pstatus'; status.textContent = 'fetching CAR…'; const t0 = performance.now();
   try {
     const r = await fetch(`${base}/ipfs/${cid}`, { headers: { accept: 'application/vnd.ipld.car' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -61,16 +74,15 @@ async function loadFrom(base, cid) {
     const { bytes, blocks, verified, rootSeen } = await decodeCar(car, cidDigestHex(cid));
     const sha = hex(await crypto.subtle.digest('SHA-256', bytes));
     const ms = Math.round(performance.now() - t0);
-    loads[host] = { sha, bytes: bytes.length, ms };
-    $('loadcard').hidden = false; $('loadedfrom').textContent = `from ${host}`;
-    $('l-bytes').textContent = fmt(bytes.length); $('l-blocks').textContent = `${verified} / ${blocks}${rootSeen ? ' · requested CID present' : ''}`; $('l-sha').textContent = sha; $('l-time').textContent = `${ms} ms`;
-    const others = Object.entries(loads).filter(([h]) => h !== host);
-    $('compare').innerHTML = others.length ? others.map(([h, l]) => `<span class="${l.sha === sha ? 'ok' : 'bad'}">${l.sha === sha ? '✓ identical to' : '✗ differs from'} the copy loaded from ${esc(h)} (${l.ms} ms)</span>`).join('<br>') : '';
-    status.textContent = `loaded · ${verified}/${blocks} blocks verified · ${ms} ms`;
+    loads[host] = { sha, bytes: bytes.length, ms, blocks, verified, rootSeen };
+    renderLoads();
+    status.className = 'pstatus ok'; status.textContent = `✓ loaded · ${verified}/${blocks} blocks verified · ${ms} ms`;
     await ensureDb(); await db.registerFileBuffer('data.parquet', bytes);
     $('sqlcard').hidden = false; await runSql();
-  } catch (e) { status.textContent = 'failed: ' + e.message; }
+  } catch (e) { status.className = 'pstatus bad'; status.textContent = '✗ ' + e.message; }
 }
+
+// --- 3. query ----------------------------------------------------------------------------------
 async function ensureDb() {
   if (db) return;
   $('sqlstatus').textContent = 'starting DuckDB…';
