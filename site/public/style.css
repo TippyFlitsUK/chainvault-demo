@@ -6,7 +6,7 @@ body { margin:0 auto; width:1200px; background:var(--bg); color:var(--fg); font:
 html { background:var(--bg) }
 header { display:flex; justify-content:space-between; align-items:center; padding:22px 0 10px; flex-wrap:wrap; gap:12px }
 .brand { display:flex; gap:14px; align-items:center }
-.logo { font-size:34px; width:52px; height:52px; display:grid; place-items:center; background:linear-gradient(135deg,var(--logo-a),var(--logo-b)); border-radius:14px }
+.logo { width:52px; height:52px; display:grid; place-items:center; background:linear-gradient(135deg,var(--logo-a),var(--logo-b)); border-radius:14px }
 h1 { margin:0; font-size:26px; letter-spacing:.3px }
 .sub { color:var(--muted); font-size:13px }
 .pill { display:flex; gap:8px; align-items:center; border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; color:var(--muted) }
