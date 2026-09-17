@@ -14,7 +14,7 @@
     <div class="logo"><svg viewBox="0 0 64 64" width="34" height="34" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"><rect x="10" y="22" width="26" height="20" rx="10"/><rect x="28" y="22" width="26" height="20" rx="10"/></g></svg></div>
     <div>
       <h1>ChainVault</h1>
-      <div class="sub">Fetch a file from any Filecoin provider that holds it, verify every block, query it in the browser</div>
+      <div class="sub">A database on Filecoin: content-addressed, verified in your browser, queried live</div>
     </div>
   </div>
   <div class="headright">
@@ -24,12 +24,12 @@
 <nav class="tabs"><a href="/">Snapshots</a><a href="/params.html">Proof parameters</a><a class="active" href="/query.html">Verify &amp; query</a></nav>
 
 <section class="intro">
-  <div class="card"><h2>How it works</h2><p>Paste a CID. The page asks the IPNI index which Filecoin storage providers hold it, and you pick one. Your browser fetches that provider's CAR directly, checks every block's hash against its CID, and hands the bytes to DuckDB running in the page. Pick another provider and run the same query: same rows, same hash.</p></div>
-  <div class="card"><h2>Why</h2><p>No gateway, no vendor, no server of ours. The provider proves on-chain that it still holds the data; the verification here happens on your machine. Any provider that has the CID will do.</p></div>
+  <div class="card"><h2>The database</h2><p>The database is a file stored on Filecoin. Its name is its content: a CID, the hash of the bytes, so anyone holding a copy can prove it is the right one. The IPNI index chain records which storage providers hold that CID, and each provider proves on chain, every proving period, that it still has the data.</p></div>
+  <div class="card"><h2>What this page does</h2><p>Paste the CID. The page reads the index to list the providers, your browser fetches the file straight from the one you pick and checks every block against its hash, then DuckDB, running in this page, runs live SQL on the verified bytes. Load a second provider and the two copies are compared byte for byte. No gateway, no vendor, nothing of ours in the path.</p></div>
 </section>
 
 <section class="card">
-  <h2>1 · Find the providers <span class="muted small" id="findstatus"></span></h2>
+  <h2>1 · Find who holds it <span class="muted small">the IPNI index maps the CID to providers</span> <span class="muted small" id="findstatus"></span></h2>
   <div class="row cidrow">
     <input id="cid" type="text" placeholder="CID, e.g. bafkrei…" value="bafkreid2m2lrzvsevlqtqw5cppv7idyjb62rww4uhczl4arczgury662he">
     <button id="find">Find providers</button>
@@ -39,12 +39,12 @@
 
 <section class="grid">
   <div class="card wide" id="loadcard">
-    <h2>2 · Copies loaded <span class="muted small">one row per provider, verified in this browser</span></h2>
-    <div id="verdict" class="verdict muted">No copies loaded yet. Pick a provider above; load a second one to compare.</div>
+    <h2>2 · Verified copies <span class="muted small">fetched from the provider, every block checked against its CID</span></h2>
+    <div id="verdict" class="verdict muted">No copies loaded yet. Pick a provider above; load a second one and the two are compared byte for byte.</div>
     <table class="loads" id="loads"><tr><th>provider</th><th>bytes</th><th>blocks verified</th><th>sha256</th><th>fetched</th><th>match</th></tr><tr><td colspan="6" class="muted">–</td></tr></table>
   </div>
   <div class="card wide" id="sqlcard">
-    <h2>3 · Query <span class="muted small">DuckDB running in this page, against the copy loaded last</span></h2>
+    <h2>3 · Live query <span class="muted small">SQL on the verified copy, DuckDB running in this page</span></h2>
     <textarea id="sql" rows="3" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:var(--term); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:10px">SELECT * FROM read_parquet('data.parquet') LIMIT 10</textarea>
     <div class="row" style="margin-top:8px"><button id="run" disabled>Run</button><span id="sqlstatus" class="muted small">load a copy first; results appear here</span></div>
     <div style="overflow-x:auto"><table id="results" class="params-table"><tr><th>date</th><th>transactions</th><th>onboarded_pibs</th><th>…</th></tr><tr><td colspan="4" class="muted">–</td></tr></table></div>
