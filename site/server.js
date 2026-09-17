@@ -111,7 +111,7 @@ function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf) {
     const copies = sourcesOf(part).sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0));
     const tryCopy = (k) => {
       if (k >= copies.length) { res.destroy(new Error(`no provider served part ${part.index}`)); return; }
-      const up = https.get(copies[k].url, { headers: { 'user-agent': 'chainvault-site/0.1' } }, (r) => {
+      const up = https.get(copies[k].url, { headers: { 'user-agent': 'chainvault-site/0.1', accept: 'application/vnd.ipld.car, */*' } }, (r) => {
         if (r.statusCode !== 200) { r.resume(); return tryCopy(k + 1); }
         let pos = pStart;
         const leaves = r.pipe(new CarLeaves());
@@ -160,7 +160,7 @@ function ipniLookup(cid, cb) {
   }).on('error', cb);
 }
 function probeCar(url, cb) {
-  https.get(url, { headers: { 'user-agent': 'chainvault-site/0.1' } }, (r) => {
+  https.get(url, { headers: { 'user-agent': 'chainvault-site/0.1', accept: 'application/vnd.ipld.car, */*' } }, (r) => {
     if (r.statusCode !== 200) { r.resume(); return cb(new Error(`HTTP ${r.statusCode}`)); }
     let size = 0, head = Buffer.alloc(0);
     const leaves = r.pipe(new CarLeaves());
