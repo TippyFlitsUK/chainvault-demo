@@ -16,7 +16,7 @@ h1 { margin:0; font-size:26px; letter-spacing:.3px }
 .tabs a.active { color:var(--fg); background:var(--card); border-color:var(--line); margin-bottom:-1px }
 .tabs a:hover { color:var(--fg); text-decoration:none }
 .cidrow { margin:4px 0 14px } .cidrow input { flex:1; min-width:320px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; padding:10px 12px }
-.providers { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px }
+.providers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px }
 .provcard { display:flex; flex-direction:column; gap:6px; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:#0e1520 }
 .provcard .pname { font-weight:700; font-size:15px } .provcard .phost { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; color:var(--muted) } .provcard .ploc { color:var(--muted); font-size:12px }
 .provcard button { margin-top:8px; width:100% } .provcard .pstatus { font-size:12px; color:var(--muted); min-height:16px } .provcard .pstatus.ok { color:var(--accent) } .provcard .pstatus.bad { color:var(--bad) }
