@@ -83,8 +83,10 @@ async function runSql() {
   if (!conn) return; $('sqlstatus').textContent = 'running…'; const t0 = performance.now();
   try {
     const res = await conn.query($('sql').value);
-    const cols = res.schema.fields.map((f) => f.name); const rows = res.toArray().map((r) => r.toJSON());
-    $('results').innerHTML = `<tr>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>` + rows.map((r) => `<tr>${cols.map((c) => `<td>${esc(r[c] ?? '')}</td>`).join('')}</tr>`).join('');
+    const fields = res.schema.fields; const cols = fields.map((f) => f.name); const rows = res.toArray().map((r) => r.toJSON());
+    const isTime = (f) => /Date|Timestamp/i.test(String(f.type));
+    const show = (f, v) => v == null ? '' : isTime(f) ? new Date(Number(v)).toISOString().slice(0, String(f.type).includes('Date') ? 10 : 19).replace('T', ' ') : typeof v === 'number' && !Number.isInteger(v) ? v.toFixed(4) : String(v);
+    $('results').innerHTML = `<tr>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr>` + rows.map((r) => `<tr>${fields.map((f) => `<td>${esc(show(f, r[f.name]))}</td>`).join('')}</tr>`).join('');
     $('sqlstatus').textContent = `${rows.length} row${rows.length === 1 ? '' : 's'} · ${Math.round(performance.now() - t0)} ms`;
   } catch (e) { $('sqlstatus').textContent = 'error: ' + e.message; $('results').innerHTML = ''; }
 }
