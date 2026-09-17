@@ -60,7 +60,7 @@ def data_sets_in(state):
     for s in state.get("snapshots", []):
         for part in s.get("parts", []):
             for c in part.get("copies", []):
-                if "data_set_id" in c:
+                if "data_set_id" in c and not c.get("removed"):
                     ids.setdefault(c["data_set_id"], {"provider_id": c.get("provider_id"), "pieces": 0, "bytes": 0})
                     ids[c["data_set_id"]]["pieces"] += 1
                     ids[c["data_set_id"]]["bytes"] += part.get("size", 0)

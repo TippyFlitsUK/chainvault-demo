@@ -33,7 +33,7 @@ KEEP_ONCHAIN = int(os.environ.get("CV_KEEP_ONCHAIN", "6"))
 MIN_INTERVAL_EPOCHS = int(os.environ.get("CV_MIN_INTERVAL_EPOCHS", "0"))
 UPLOAD_RETRIES = int(os.environ.get("CV_UPLOAD_RETRIES", "3"))
 PARALLEL = max(1, int(os.environ.get("CV_PARALLEL", "4")))
-STATE_LOCK = threading.Lock()
+STATE_LOCK = threading.RLock()
 FILECOIN_PIN = os.environ.get("CV_FILECOIN_PIN", "filecoin-pin")
 MANIFEST_VERSION = 1
 NAME_RE = re.compile(r"forest_snapshot_(?P<chain>[a-z]+)_(?P<date>\d{4}-\d{2}-\d{2})_height_(?P<height>\d+)\.forest\.car\.zst$")
@@ -256,6 +256,7 @@ def archive_one(item, workdir, state, dry_run=False):
     if got != expected:
         rec["status"] = "failed"; rec["error"] = f"sha256 mismatch {got} != {expected}"
         save_state(workdir / "state.json", state)
+        dl.unlink(missing_ok=True)  # otherwise the next run sees a full-size file and repeats the same mismatch
         raise RuntimeError(rec["error"])
     rec["sha256"] = got
     rec["verified_at"] = now()
@@ -281,9 +282,10 @@ def archive_one(item, workdir, state, dry_run=False):
     def upload(p, prec):
         meta = {"chainvault": "snapshot"}  # cap is 3 keys per piece; filecoin-pin adds name, the SDK adds ipfsRootCID
         r = pin_add(Path(p["file"]), meta)
-        prec.update(r)
-        prec["uploaded_at"] = now()
-        save_state(workdir / "state.json", state)
+        with STATE_LOCK:  # never mutate a record while another thread serialises the state
+            prec.update(r)
+            prec["uploaded_at"] = now()
+            save_state(workdir / "state.json", state)
 
     todo = [(p, prec) for p, prec in zip(parts, rec["parts"]) if not prec.get("piece_cid")]
     if todo and not any(pr.get("copies") for pr in rec["parts"]) and not known_data_sets(state):

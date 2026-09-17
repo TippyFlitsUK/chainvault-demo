@@ -23,9 +23,11 @@ function providerCell(c) {
 function render() {
   const snaps = [...(state.snapshots || [])].sort((a, b) => b.height - a.height);
   const done = snaps.filter(s => s.status === 'done');
+  const archived = snaps.filter(s => s.status === 'done' || s.status === 'pruned');
   const t = (proofs && proofs.totals) || {};
   $('chain').textContent = state.chain ? `· ${state.chain}` : '';
-  $('c-snaps').textContent = done.length;
+  $('c-snaps').textContent = archived.length;
+  $('c-snaps').title = `${done.length} with payload on Filecoin, ${archived.length - done.length} pruned to manifest only`;
   $('c-bytes').textContent = fmtBytes(t.bytes_under_proof || done.reduce((a, s) => a + s.size, 0));
   $('c-proofs').textContent = t.proofs_observed ?? '–';
   $('c-last').textContent = t.latest_proof_seconds_ago != null ? fmtDur(t.latest_proof_seconds_ago) : '–';
@@ -85,7 +87,7 @@ function render() {
       <div class="muted small">${d.pieces} pieces · ${fmtBytes(d.bytes)} · ${d.leaf_count.toLocaleString()} leaves · ${d.proofs_observed} proofs observed since tracking began</div></div>`; }).join('')
     : '<div class="muted">No data sets yet.</div>';
 
-  const chain = done.sort((a, b) => b.height - a.height);
+  const chain = archived.filter(s => s.manifest).sort((a, b) => b.height - a.height);
   const chainShown = showAllChain ? chain : chain.slice(0, CHAIN_VISIBLE);
   $('showallchain').hidden = chain.length <= CHAIN_VISIBLE;
   $('showallchain').textContent = showAllChain ? `show newest ${CHAIN_VISIBLE}` : `show all ${chain.length}`;
