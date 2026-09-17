@@ -385,6 +385,9 @@ def main():
     existing = next((s for s in state["snapshots"] if s["name"] == name), None)
     if existing and existing["status"] in ("done", "pruned") and not a.force:
         log(f"latest {name} (height {height}) already archived")
+        if not a.dry_run:
+            prune_onchain(state)
+            save_state(workdir / "state.json", state)
         prune_local(workdir, state)
         return 0
     newest = max([s["height"] for s in state["snapshots"] if s["status"] in ("done", "pruned")] or [0])
