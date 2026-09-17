@@ -135,7 +135,7 @@ class PinError(RuntimeError):
 
 def run_pin(args):
     cmd = [FILECOIN_PIN] + args
-    tag = next((a.rsplit(".part", 1)[-1] for a in args if ".part" in a), "manifest")
+    tag = args[0] if args and args[0] != "add" else next((a.rsplit(".part", 1)[-1] for a in args if ".part" in a), "manifest")
     log(f"[{tag}] $ " + " ".join(cmd))
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     lines = []
