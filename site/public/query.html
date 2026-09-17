@@ -35,16 +35,16 @@
 </section>
 
 <section class="grid">
-  <div class="card wide" id="loadcard" hidden>
+  <div class="card wide" id="loadcard">
     <h2>2 · Copies loaded <span class="muted small">one row per provider, verified in this browser</span></h2>
-    <div id="verdict" class="verdict"></div>
-    <table class="loads" id="loads"></table>
+    <div id="verdict" class="verdict muted">No copies loaded yet. Pick a provider above; load a second one to compare.</div>
+    <table class="loads" id="loads"><tr><th>provider</th><th>bytes</th><th>blocks verified</th><th>sha256</th><th>fetched</th><th>match</th></tr><tr><td colspan="6" class="muted">–</td></tr></table>
   </div>
-  <div class="card wide" id="sqlcard" hidden>
+  <div class="card wide" id="sqlcard">
     <h2>3 · Query <span class="muted small">DuckDB running in this page, against the copy loaded last</span></h2>
     <textarea id="sql" rows="3" spellcheck="false" style="width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:#05080c; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:10px">SELECT * FROM read_parquet('data.parquet') LIMIT 10</textarea>
-    <div class="row" style="margin-top:8px"><button id="run">Run</button><span id="sqlstatus" class="muted small"></span></div>
-    <div style="overflow-x:auto"><table id="results" class="params-table"></table></div>
+    <div class="row" style="margin-top:8px"><button id="run" disabled>Run</button><span id="sqlstatus" class="muted small">load a copy first; results appear here</span></div>
+    <div style="overflow-x:auto"><table id="results" class="params-table"><tr><th>date</th><th>transactions</th><th>onboarded_pibs</th><th>…</th></tr><tr><td colspan="4" class="muted">–</td></tr></table></div>
   </div>
 </section>
 

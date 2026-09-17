@@ -37,7 +37,7 @@ const place = (loc) => { const m = Object.fromEntries((loc || '').split(';').map
 // --- 1. providers via IPNI ---------------------------------------------------------------------
 async function findProviders() {
   const cid = $('cid').value.trim(); $('findstatus').textContent = 'asking cid.contact…'; $('providers').innerHTML = ''; loads = {};
-  $('loadcard').hidden = true; $('sqlcard').hidden = true;
+
   try {
     const r = await fetch(`https://cid.contact/cid/${cid}`, { headers: { accept: 'application/json' } });
     if (r.status === 404) { $('findstatus').textContent = 'no provider in IPNI holds this CID'; return; }
@@ -58,7 +58,6 @@ async function findProviders() {
 function renderLoads() {
   const entries = Object.entries(loads); if (!entries.length) return;
   const shas = new Set(entries.map(([, l]) => l.sha)); const first = entries[0][1].sha;
-  $('loadcard').hidden = false;
   $('verdict').className = 'verdict ' + (shas.size === 1 ? 'ok' : 'bad');
   $('verdict').textContent = entries.length < 2 ? `Loaded from ${entries[0][0]}. Load from another provider to compare.` : shas.size === 1 ? `✓ ${entries.length} providers, one identical file: every copy hashes to ${first.slice(0, 16)}…` : `✗ copies differ: ${[...shas].map((x) => x.slice(0, 12)).join(' vs ')}`;
   $('loads').innerHTML = `<tr><th>provider</th><th>bytes</th><th>blocks verified</th><th>sha256</th><th>fetched</th><th>match</th></tr>` + entries.map(([h, l]) => `<tr><td>${esc(h)}</td><td>${fmt(l.bytes)}</td><td>${l.verified} / ${l.blocks}${l.rootSeen ? ' <span class="muted">· CID present</span>' : ''}</td><td class="mono">${l.sha}</td><td>${l.ms} ms</td><td class="${l.sha === first ? 'ok' : 'bad'}">${entries.length < 2 ? '–' : l.sha === first ? '✓ identical' : '✗ differs'}</td></tr>`).join('');
@@ -78,7 +77,7 @@ async function loadFrom(base, cid) {
     renderLoads();
     status.className = 'pstatus ok'; status.textContent = `✓ loaded · ${verified}/${blocks} blocks verified · ${ms} ms`;
     await ensureDb(); await db.registerFileBuffer('data.parquet', bytes);
-    $('sqlcard').hidden = false; await runSql();
+    $('run').disabled = false; await runSql();
   } catch (e) { status.className = 'pstatus bad'; status.textContent = '✗ ' + e.message; }
 }
 
