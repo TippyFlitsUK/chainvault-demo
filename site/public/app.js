@@ -108,6 +108,22 @@ function render() {
   if (copyBtn) copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(`${cmd1}\n${cmd2}\n`); copyBtn.textContent = 'copied'; setTimeout(() => { copyBtn.textContent = 'copy'; }, 1500); } catch { copyBtn.textContent = 'select & copy'; } };
 }
 
+const esc = (s) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
+function logClass(line) {
+  if (/MISMATCH|Traceback|RuntimeError|Error|ERROR|failed|exited [1-9]/.test(line)) return 'l-bad';
+  if (/WARN/.test(line)) return 'l-warn';
+  if (/SNAPSHOT VERIFIED|Imported snapshot in|sha256 OK|forest exited 0/.test(line)) return 'l-ok';
+  if (/^\[[\d:]+\] \$ |^\s+\$ /.test(line)) return 'l-cmd';
+  if (/forest::|f3\/sidecar|libp2p/.test(line)) return 'l-forest';
+  if (/GET https|fetching|assembling|verifying|manifest:/.test(line)) return 'l-step';
+  return '';
+}
+function colourLine(line) {
+  const m = line.match(/^(\[[\d:]+\])(.*)$/s);
+  const body = m ? m[2] : line;
+  const stamp = m ? `<span class="l-ts">${esc(m[1])}</span>` : '';
+  return `<span class="${logClass(line)}">${stamp}${esc(body)}</span>`;
+}
 let logLines = [], live = false;
 const PLACEHOLDER = 'Press Run rehydration to pull the latest snapshot back from the storage providers, verify it, and import it into a Forest node, live.';
 function renderLog() {
