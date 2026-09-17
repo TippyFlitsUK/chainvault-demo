@@ -14,6 +14,8 @@ const REHYDRATE_TOKEN = process.env.CV_REHYDRATE_TOKEN || '';
 const REHYDRATE_PROVIDER = process.env.CV_REHYDRATE_PROVIDER || '';
 const REHYDRATE_LOG = path.join(DATA, 'rehydrate.log');
 const PARAMS_STATE = path.join(DATA, 'params_state.json');
+const IPFS_CACHE = path.join(DATA, 'ipfs_cache.json');
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, HEAD, OPTIONS', 'access-control-allow-headers': 'Range, Content-Type', 'access-control-expose-headers': 'Content-Length, Content-Range, Accept-Ranges, X-Proof-Param-Digest, X-Snapshot-Height, X-Snapshot-Sha256, X-Manifest-Cid' };
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
@@ -78,7 +80,8 @@ function providerUrl(id) {
 // Stream a file back out of its pieces on the SP, byte-exact, with Range support. Used for
 // /ipfs/<cid> (proof parameters, what a node's IPFS_GATEWAY points at) and /snapshot/<height|latest>
 // (Forest imports straight from the URL). Nothing is cached on this box.
-function streamParts(req, res, partsIn, filename, extraHeaders) {
+function streamParts(req, res, partsIn, filename, extraHeaders, sourcesOf) {
+  sourcesOf = sourcesOf || ((part) => (part.copies || []).map((c) => ({ provider_id: c.provider_id, url: providerUrl(c.provider_id) ? `${providerUrl(c.provider_id)}/piece/${part.piece_cid}` : null })).filter((x) => x.url));
   const parts = [...partsIn].sort((a, b) => a.index - b.index);
   const total = parts.reduce((a, p) => a + p.size, 0);
   let start = 0, end = total - 1, status = 200;
@@ -91,7 +94,7 @@ function streamParts(req, res, partsIn, filename, extraHeaders) {
   }
   const headers = {
     'content-type': 'application/octet-stream', 'accept-ranges': 'bytes', 'content-length': end - start + 1,
-    'content-disposition': `inline; filename="${filename}"`, 'cache-control': 'no-cache', ...extraHeaders,
+    'content-disposition': `inline; filename="${filename}"`, 'cache-control': 'no-cache', ...CORS, ...extraHeaders,
   };
   if (status === 206) headers['content-range'] = `bytes ${start}-${end}/${total}`;
   res.writeHead(status, headers);
@@ -105,12 +108,10 @@ function streamParts(req, res, partsIn, filename, extraHeaders) {
     const part = parts[i++];
     const pStart = offset, pEnd = offset + part.size - 1; offset += part.size;
     if (pEnd < start) return next();
-    const copies = [...(part.copies || [])].sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0));
+    const copies = sourcesOf(part).sort((a, b) => (a.provider_id === preferred ? -1 : 0) - (b.provider_id === preferred ? -1 : 0));
     const tryCopy = (k) => {
       if (k >= copies.length) { res.destroy(new Error(`no provider served part ${part.index}`)); return; }
-      const base = providerUrl(copies[k].provider_id);
-      if (!base) return tryCopy(k + 1);
-      const up = https.get(`${base}/piece/${part.piece_cid}`, { headers: { 'user-agent': 'chainvault-site/0.1' } }, (r) => {
+      const up = https.get(copies[k].url, { headers: { 'user-agent': 'chainvault-site/0.1' } }, (r) => {
         if (r.statusCode !== 200) { r.resume(); return tryCopy(k + 1); }
         let pos = pStart;
         const leaves = r.pipe(new CarLeaves());
@@ -133,10 +134,68 @@ function streamParts(req, res, partsIn, filename, extraHeaders) {
   next();
 }
 
+function sniffType(head) {
+  if (head.subarray(0, 4).toString('latin1') === 'PAR1') return 'application/vnd.apache.parquet';
+  if (head[0] === 0x28 && head[1] === 0xb5 && head[2] === 0x2f && head[3] === 0xfd) return 'application/zstd';
+  const t = head.subarray(0, 64).toString('utf8').trimStart();
+  if (t.startsWith('{') || t.startsWith('[')) return 'application/json';
+  return 'application/octet-stream';
+}
+
+// Any other CID pinned through Filecoin Onchain Cloud: find its providers in IPNI, stream the provider's
+// trustless CAR through the decoder. Size and type come from one full pass on first request and are cached.
+function ipniLookup(cid, cb) {
+  https.get(`https://cid.contact/cid/${cid}`, { headers: { accept: 'application/json', 'user-agent': 'chainvault-site/0.1' } }, (r) => {
+    let body = ''; r.on('data', (d) => { body += d; }); r.on('end', () => {
+      try {
+        const results = (JSON.parse(body).MultihashResults || [])[0]?.ProviderResults || [];
+        const urls = [];
+        for (const p of results) for (const a of (p.Provider?.Addrs || [])) {
+          const m = /^\/dns4?6?\/([^/]+)\/tcp\/(\d+)\/(https|http)$/.exec(a);
+          if (m) urls.push(`${m[3]}://${m[1]}${(m[3] === 'https' && m[2] === '443') || (m[3] === 'http' && m[2] === '80') ? '' : ':' + m[2]}`);
+        }
+        cb(null, [...new Set(urls)]);
+      } catch (e) { cb(e); }
+    });
+  }).on('error', cb);
+}
+function probeCar(url, cb) {
+  https.get(url, { headers: { 'user-agent': 'chainvault-site/0.1' } }, (r) => {
+    if (r.statusCode !== 200) { r.resume(); return cb(new Error(`HTTP ${r.statusCode}`)); }
+    let size = 0, head = Buffer.alloc(0);
+    const leaves = r.pipe(new CarLeaves());
+    leaves.on('data', (d) => { size += d.length; if (head.length < 64) head = Buffer.concat([head, d]).subarray(0, 64); });
+    leaves.on('end', () => cb(null, { size, type: sniffType(head) }));
+    leaves.on('error', cb);
+  }).on('error', cb);
+}
+function serveIpni(req, res, cid) {
+  const cache = readJson(IPFS_CACHE, {});
+  const go = (entry) => {
+    const part = { index: 0, size: entry.size, copies: entry.sources.map((u, i) => ({ provider_id: -1 - i, url: u })) };
+    return streamParts(req, res, [part], cid, { 'content-type': entry.type }, (p) => p.copies.map((c) => ({ provider_id: c.provider_id, url: `${c.url}/ipfs/${cid}` })));
+  };
+  if (cache[cid]) return go(cache[cid]);
+  ipniLookup(cid, (err, urls) => {
+    if (err || !urls.length) { res.writeHead(404, { 'content-type': 'text/plain', ...CORS }); return res.end('no Filecoin provider found for this CID in IPNI\n'); }
+    const tryProbe = (k) => {
+      if (k >= urls.length) { res.writeHead(502, { 'content-type': 'text/plain', ...CORS }); return res.end('providers found but none served the CID\n'); }
+      probeCar(`${urls[k]}/ipfs/${cid}`, (e, info) => {
+        if (e) return tryProbe(k + 1);
+        const entry = { size: info.size, type: info.type, sources: [urls[k], ...urls.filter((u) => u !== urls[k])], probed_at: new Date().toISOString() };
+        const c = readJson(IPFS_CACHE, {}); c[cid] = entry;
+        try { fs.writeFileSync(IPFS_CACHE, JSON.stringify(c, null, 2)); } catch {}
+        go(entry);
+      });
+    };
+    tryProbe(0);
+  });
+}
+
 function serveParam(req, res, cid) {
   const st = readJson(PARAMS_STATE, { files: {} });
   const f = Object.values(st.files || {}).find((x) => x.cid === cid && x.status === 'done');
-  if (!f) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not archived\n'); }
+  if (!f) return serveIpni(req, res, cid);
   return streamParts(req, res, f.parts, f.name, { 'x-proof-param-digest': f.digest });
 }
 
@@ -174,7 +233,8 @@ http.createServer((req, res) => {
     if (!/^[A-Za-z0-9]+$/.test(cid)) return sendJson(res, 400, { error: 'bad cid' });
     return sendJson(res, 200, readJson(path.join(DATA, 'params_manifests', `${cid}.manifest.json`), { error: 'not found' }));
   }
-  if (url.pathname.startsWith('/ipfs/')) return serveParam(req, res, url.pathname.slice(6).split('/')[0]);
+  if ((url.pathname.startsWith('/ipfs/') || url.pathname.startsWith('/snapshot/')) && req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
+  if (url.pathname.startsWith('/ipfs/')) { const cid = url.pathname.slice(6).split('/')[0]; if (!/^[A-Za-z0-9]{10,}$/.test(cid)) { res.writeHead(400); return res.end('bad cid'); } return serveParam(req, res, cid); }
   if (url.pathname.startsWith('/snapshot/')) return serveSnapshot(req, res, url.pathname.slice(10).split('/')[0]);
   if (url.pathname === '/api/rehydrate/start' && req.method === 'POST') return startRehydrate(req, res);
   if (url.pathname === '/api/rehydrate/stream') return streamLog(req, res);
