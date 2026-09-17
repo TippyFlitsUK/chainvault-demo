@@ -75,6 +75,9 @@ def data_sets_in(state):
 def main():
     workdir = Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get("CV_WORKDIR", str(Path.home() / "chainvault")))
     state = json.loads((workdir / "state.json").read_text()) if (workdir / "state.json").exists() else {"snapshots": []}
+    if (workdir / "params_state.json").exists():  # proof-parameter pieces live in the same data sets
+        pstate = json.loads((workdir / "params_state.json").read_text())
+        state = dict(state, snapshots=list(state.get("snapshots", [])) + list(pstate.get("files", {}).values()))
     prev = json.loads((workdir / "proofs.json").read_text()) if (workdir / "proofs.json").exists() else {"data_sets": {}}
     head = u256(rpc("eth_blockNumber", []))
     out = {"network": "calibration", "pdp_verifier": PDP_VERIFIER, "head_epoch": head, "head_time": now(), "data_sets": {}}

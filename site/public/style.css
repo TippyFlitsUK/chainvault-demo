@@ -11,6 +11,11 @@ h1 { margin:0; font-size:26px; letter-spacing:.3px }
 .pill .dot { width:9px; height:9px; border-radius:50%; background:var(--warn); box-shadow:0 0 8px var(--warn) }
 .pill.ok .dot { background:var(--accent); box-shadow:0 0 10px var(--accent); animation:pulse 2s infinite }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+.tabs { display:flex; gap:6px; margin:4px 0 12px; border-bottom:1px solid var(--line) }
+.tabs a { padding:8px 14px; color:var(--muted); text-decoration:none; border:1px solid transparent; border-bottom:0; border-radius:8px 8px 0 0; font-weight:600; font-size:14px }
+.tabs a.active { color:var(--fg); background:var(--card); border-color:var(--line); margin-bottom:-1px }
+.tabs a:hover { color:var(--fg); text-decoration:none }
+.params-table td, .params-table th { padding:6px 8px } .params-table .name { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; word-break:break-all }
 .intro { margin:12px 0 14px; display:grid; grid-template-columns:1fr 1fr; gap:12px }
 .intro .card p { margin:0; color:#c9d1d9; font-size:14.5px; line-height:1.55 }
 .intro .card h2 { margin-bottom:6px }

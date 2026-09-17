@@ -174,14 +174,17 @@ def parse_add_output(out):
     return res
 
 
-def pin_add(path, metadata):
-    """Upload with COPIES copies across PROVIDERS. If only a secondary copy fails, top up that provider alone
-    rather than re-adding everything (a full retry re-commits the primary and leaves duplicate pieces)."""
+def pin_add(path, metadata, providers=None, copies=None):
+    """Upload with `copies` copies across `providers` (defaults: CV_COPIES / CV_PROVIDERS). If only a secondary
+    copy fails, top up that provider alone rather than re-adding everything (a full retry re-commits the
+    primary and leaves duplicate pieces)."""
+    PROVIDERS_ = list(providers) if providers is not None else PROVIDERS
+    COPIES_ = int(copies) if copies is not None else COPIES
     base = ["add", "--network", NETWORK, "--skip-ipni-verification"]
     for k, v in metadata.items():
         base += ["--metadata", f"{k}={v}"]
-    args = base[:1] + ["--copies", str(COPIES)] + base[1:]
-    for p in PROVIDERS:
+    args = base[:1] + ["--copies", str(COPIES_)] + base[1:]
+    for p in PROVIDERS_:
         args += ["--provider-id", p]
     args.append(str(path))
     last = None
@@ -197,7 +200,7 @@ def pin_add(path, metadata):
             except Exception:
                 partial = None
             if partial and partial["copies"]:
-                log(f"partial success: {len(partial['copies'])} of {COPIES} copies committed; topping up the rest")
+                log(f"partial success: {len(partial['copies'])} of {COPIES_} copies committed; topping up the rest")
                 result = partial
                 break
             log(f"upload attempt {attempt} failed: {e}")
@@ -209,8 +212,8 @@ def pin_add(path, metadata):
     if result is None:
         raise last
     have = {c["provider_id"] for c in result["copies"]}
-    for p in PROVIDERS:
-        if int(p) in have or len(result["copies"]) >= COPIES:
+    for p in PROVIDERS_:
+        if int(p) in have or len(result["copies"]) >= COPIES_:
             continue
         for attempt in range(1, UPLOAD_RETRIES + 1):
             try:
