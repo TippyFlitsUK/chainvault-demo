@@ -21,22 +21,32 @@
 <nav class="tabs"><a href="/">Snapshots</a><a class="active" href="/params.html">Proof parameters</a></nav>
 
 <section class="intro">
-  <div class="card"><h2>Archive</h2><p>Every Filecoin node needs the Groth16 proving and verifying keys listed in <a href="https://github.com/filecoin-project/filecoin-ffi/blob/master/parameters.json">parameters.json</a>, about 150 GB, normally fetched from proofs.filecoin.io. ChainVault fetches each file, checks the manifest digest, and stores it on a Filecoin PDP storage provider in 1000 MiB pieces with a manifest keyed by the file's original CID.</p></div>
-  <div class="card"><h2>Use</h2><p>Point a node at this site instead of the default gateway. It fetches by CID as usual and verifies the digest itself, so the copy is byte-exact or rejected.</p><div id="usebox" class="cmdbox"></div></div>
+  <div class="card"><h2>Archive</h2><p>Every Filecoin node needs the Groth16 proving and verifying keys listed in <a href="https://github.com/filecoin-project/filecoin-ffi/blob/master/parameters.json">parameters.json</a>, about 150 GB in 44 files, normally fetched from proofs.filecoin.io. ChainVault fetches each file, checks the manifest digest, and stores it on a Filecoin PDP storage provider in 1000 MiB pieces with a manifest keyed by the file's original CID.</p></div>
+  <div class="card"><h2>Use</h2><p>Point a node here instead of the default gateway. It fetches by CID as usual and verifies the digest itself, so a copy is byte-exact or rejected.</p><div id="usebox" class="cmdbox"></div></div>
 </section>
 
-<section class="counters">
+<section class="counters n5">
   <div class="counter"><div class="n" id="c-files">–</div><div class="l">files archived</div></div>
-  <div class="counter"><div class="n" id="c-bytes">–</div><div class="l">bytes archived</div></div>
+  <div class="counter"><div class="n" id="c-bytes">–</div><div class="l">archived of total</div></div>
   <div class="counter"><div class="n" id="c-pieces">–</div><div class="l">pieces on Filecoin</div></div>
-  <div class="counter"><div class="n" id="c-inprogress">–</div><div class="l">in progress</div></div>
+  <div class="counter"><div class="n" id="c-inprogress">–</div><div class="l" id="l-inprogress">in progress</div></div>
   <div class="counter"><div class="n" id="c-cost">–</div><div class="l">USDFC / month, whole set</div></div>
+</section>
+
+<section class="card progresscard">
+  <div class="row between"><span id="progress-label" class="small muted">–</span><span id="progress-pct" class="small muted">–</span></div>
+  <div class="bar big"><i id="progress-bar" style="width:0%"></i></div>
 </section>
 
 <section class="grid">
   <div class="card wide">
-    <h2>Parameter files <span class="muted" id="subtitle"></span></h2>
-    <div style="overflow-x:auto"><table class="params-table" id="files"></table></div>
+    <h2>Parameter set <span class="muted">proof family × sector size</span></h2>
+    <div class="legend small muted"><span class="chip done">done</span><span class="chip uploading">uploading</span><span class="chip downloading">downloading</span><span class="chip pending">pending</span><span class="chip failed">failed</span> · each cell holds the proving key (.params) and the verifying key (.vk); click a done key to download it through the vault</div>
+    <div style="overflow-x:auto"><table class="matrix" id="matrix"></table></div>
+  </div>
+  <div class="card wide">
+    <h2>All files <button id="togglelist" class="secondary small-btn">show</button></h2>
+    <div id="filelist" hidden></div>
   </div>
 </section>
 

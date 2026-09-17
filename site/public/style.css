@@ -15,7 +15,25 @@ h1 { margin:0; font-size:26px; letter-spacing:.3px }
 .tabs a { padding:8px 14px; color:var(--muted); text-decoration:none; border:1px solid transparent; border-bottom:0; border-radius:8px 8px 0 0; font-weight:600; font-size:14px }
 .tabs a.active { color:var(--fg); background:var(--card); border-color:var(--line); margin-bottom:-1px }
 .tabs a:hover { color:var(--fg); text-decoration:none }
-.params-table td, .params-table th { padding:6px 8px } .params-table .name { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; word-break:break-all }
+.counters.n5 { grid-template-columns:repeat(5,minmax(0,1fr)) }
+.progresscard { margin-bottom:14px } .row.between { justify-content:space-between; margin-bottom:6px }
+.bar.big { height:10px; margin:0 }
+.legend { margin:0 0 10px } .legend .chip { margin-right:6px }
+.chip { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted); background:#0e1520; text-decoration:none; white-space:nowrap }
+.chip::before { content:""; width:7px; height:7px; border-radius:50%; background:#3b4656 }
+.chip.done { color:var(--fg); border-color:#1f6f3b } .chip.done::before { background:var(--accent) }
+.chip.uploading::before, .chip.splitting::before { background:var(--warn); animation:pulse 1.5s infinite }
+.chip.downloading::before { background:var(--accent2); animation:pulse 1.5s infinite }
+.chip.failed { border-color:var(--bad) } .chip.failed::before { background:var(--bad) }
+a.chip:hover { color:var(--fg); border-color:var(--accent2); text-decoration:none }
+.matrix { width:100%; border-collapse:separate; border-spacing:0; font-size:13px }
+.matrix th { color:var(--muted); font-weight:500; text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap }
+.matrix th.fam { width:230px } .matrix th.sec { text-align:center }
+.matrix td { padding:10px; border-bottom:1px solid var(--line); vertical-align:top }
+.matrix td.fam { color:var(--fg); font-weight:600 } .matrix td.fam small { display:block; color:var(--muted); font-weight:400; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; margin-top:2px }
+.matrix td.cell { text-align:center } .matrix td.cell .chip { margin:2px 0 } .matrix td.cell .chip b { font-weight:600 } .matrix td.cell .chip span { color:var(--muted) }
+.matrix td.empty { color:#3b4656; text-align:center }
+.filelist table { width:100%; font-size:12.5px } .filelist td.mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px } .filelist td { white-space:nowrap } .filelist td.mono.name { max-width:520px; overflow:hidden; text-overflow:ellipsis }
 .intro { margin:12px 0 14px; display:grid; grid-template-columns:1fr 1fr; gap:12px }
 .intro .card p { margin:0; color:#c9d1d9; font-size:14.5px; line-height:1.55 }
 .intro .card h2 { margin-bottom:6px }
