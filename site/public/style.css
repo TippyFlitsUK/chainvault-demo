@@ -29,7 +29,7 @@ h2 { margin:0 0 10px; font-size:16px }
 .snap .head { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:baseline }
 .snap .h { font-size:18px; font-weight:700 } .snap .h small { color:var(--muted); font-weight:400; font-size:13px; margin-left:8px }
 .tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); margin-left:6px }
-.tag.done { color:var(--accent); border-color:var(--accent) } .tag.failed { color:var(--bad); border-color:var(--bad) } .tag.pruned { color:var(--muted) } .tag.uploading,.tag.downloading,.tag.splitting { color:var(--warn); border-color:var(--warn) }
+.tag.done { color:var(--accent); border-color:var(--accent) } .tag.failed { color:var(--bad); border-color:var(--bad) } .tag.pruned { color:var(--muted) } .tag.warn-tag { color:var(--warn); border-color:var(--warn) } .tag.uploading,.tag.downloading,.tag.splitting { color:var(--warn); border-color:var(--warn) }
 .kv { display:grid; grid-template-columns:130px 1fr; gap:3px 10px; font-size:13px; margin-top:6px }
 .kv .k { color:var(--muted) }
 code, .cmd { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px }

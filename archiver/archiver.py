@@ -282,9 +282,12 @@ def archive_one(item, workdir, state, dry_run=False):
     def upload(p, prec):
         meta = {"chainvault": "snapshot"}  # cap is 3 keys per piece; filecoin-pin adds name, the SDK adds ipfsRootCID
         r = pin_add(Path(p["file"]), meta)
+        if len(r["copies"]) < COPIES:
+            log(f"WARNING part {p['index']} has {len(r['copies'])} of {COPIES} copies on-chain (reduced redundancy)")
         with STATE_LOCK:  # never mutate a record while another thread serialises the state
             prec.update(r)
             prec["uploaded_at"] = now()
+            prec["degraded"] = len(r["copies"]) < COPIES
             save_state(workdir / "state.json", state)
 
     todo = [(p, prec) for p, prec in zip(parts, rec["parts"]) if not prec.get("piece_cid")]
@@ -321,6 +324,7 @@ def archive_one(item, workdir, state, dry_run=False):
     rec["manifest"] = {"path": str(mpath), "root_cid": r["root_cid"], "piece_cid": r["piece_cid"],
                        "copies": r["copies"], "parent_manifest_cid": parent_cid}
     rec["status"] = "done"
+    rec["degraded_parts"] = sum(1 for p in rec["parts"] if p.get("degraded"))
     rec["completed_at"] = now()
     save_state(workdir / "state.json", state)
     log(f"archived {name}: manifest {r['root_cid']}")

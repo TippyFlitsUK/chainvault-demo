@@ -60,13 +60,13 @@ function render() {
     }
     const uploaded = parts.filter(p => p.piece_cid).length;
     return `<div class="snap">
-      <div class="head"><div class="h">height ${s.height.toLocaleString()}<small>${s.date}</small><span class="tag ${s.status}">${s.status}</span></div>
+      <div class="head"><div class="h">height ${s.height.toLocaleString()}<small>${s.date}</small><span class="tag ${s.status}">${s.status}</span>${s.degraded_parts ? `<span class="tag warn-tag">${s.degraded_parts} part${s.degraded_parts === 1 ? '' : 's'} with reduced redundancy</span>` : ''}</div>
         <div class="muted small">${fmtBytes(s.size)} · ${parts.length} parts · ${uploaded}/${parts.length} on Filecoin${s.completed_at ? ' · archived ' + ago(s.completed_at) : ''}</div></div>
       <div class="kv">
         <div class="k">source</div><div><a href="${s.source_url}">${s.name}</a></div>
         <div class="k">sha256</div><div><code class="cid">${s.sha256 || '–'}</code>${s.verified_at ? ` <span class="ok small">✓ matches <a href="${s.source_sha256_url}">Forest's published checksum</a></span>` : ''}</div>
         <div class="k">manifest</div><div>${m ? `<code class="cid">${m.root_cid}</code> <a href="${gw}">gateway</a> · <a href="/api/manifest?name=${encodeURIComponent(s.name)}">json</a>` : '–'}</div>
-        ${s.error ? `<div class="k">error</div><div class="bad">${s.error}</div>` : ''}
+        ${s.error ? `<div class="k">error</div><div class="bad">${esc(String(s.error))}</div>` : ''}
       </div>
       ${parts.length ? `<details><summary>${parts.length} parts, ${new Set(parts.flatMap(p => (p.copies||[]).map(c => c.provider_id))).size} providers</summary>
         <table><tr><th>#</th><th>size</th><th>piece CID</th><th>copies</th></tr>
