@@ -391,6 +391,97 @@ def prune_onchain(state):
             s["status"] = "pruned"; s["pruned_at"] = now()
 
 
+def provider_service_urls(workdir):
+    for p in (workdir / "providers.json", Path(__file__).resolve().parent.parent / "data" / "providers.json"):
+        if p.exists():
+            return {int(pr["id"]): pr["service_url"].rstrip("/") for pr in json.loads(p.read_text()).get("providers", [])}
+    return {}
+
+
+def recover_part(workdir, snap, part, urls):
+    """A local file holding this part's bytes, named as the original upload was: the split file if it is still on
+    disk, otherwise the piece fetched back from a provider that holds it, unpacked and checked against the
+    recorded sha256. Returns (path, temp_dir_to_remove_or_None)."""
+    fname = f"{snap['name']}.part{part['index']:03d}"
+    local = workdir / "parts" / snap["name"] / fname
+    if local.exists() and sha256_file(local) == part["sha256"]:
+        return local, None
+    from rehydrate import unpack_car
+    tmp = workdir / "repair" / snap["name"]
+    tmp.mkdir(parents=True, exist_ok=True)
+    last = None
+    for c in part.get("copies", []):
+        base = urls.get(int(c.get("provider_id", -1)))
+        if not base or c.get("removed"):
+            continue
+        car = tmp / f"{fname}.car"
+        try:
+            log(f"repair: fetching part {part['index']} of {snap['name']} from provider {c['provider_id']}")
+            subprocess.run(["curl", "-sS", "-L", "--fail", "-A", UA["User-Agent"], "--retry", "3", "-o", str(car),
+                            f"{base}/piece/{part['piece_cid']}"], check=True)
+            out = unpack_car(car, tmp / "unpacked" / fname)
+            final = tmp / fname
+            shutil.move(str(out), str(final))
+            car.unlink(missing_ok=True)
+            got = sha256_file(final)
+            if got != part["sha256"]:
+                raise RuntimeError(f"sha256 mismatch {got} != {part['sha256']}")
+            return final, tmp
+        except Exception as e:
+            last = e
+            log(f"repair: provider {c.get('provider_id')} could not supply part {part['index']}: {e}")
+    shutil.rmtree(tmp, ignore_errors=True)
+    raise RuntimeError(f"no provider could supply part {part['index']}: {last}")
+
+
+def repair_degraded(workdir, state, limit=4):
+    """Self-heal: for snapshots still kept on-chain, give any part that has fewer than COPIES live copies a new
+    copy on a configured provider that lacks it. The bytes come back from a provider that still holds the piece,
+    so a lost or never-made copy is rebuilt from the surviving one with no operator involved. One attempt per
+    part per run and at most `limit` parts per run, so a slow provider cannot hold up the next archive."""
+    done = sorted([s for s in state["snapshots"] if s["status"] == "done"], key=lambda s: s["height"])
+    kept = done[-KEEP_ONCHAIN:] if KEEP_ONCHAIN > 0 else done
+    urls = None
+    attempts = 0
+    for s in reversed(kept):
+        for part in s.get("parts", []):
+            live = [c for c in part.get("copies", []) if not c.get("removed")]
+            if not part.get("piece_cid") or not live or len(live) >= COPIES:
+                continue
+            have = {int(c["provider_id"]) for c in live}
+            missing = [p for p in PROVIDERS if int(p) not in have][:COPIES - len(live)]
+            if not missing:
+                continue
+            if attempts >= limit:
+                log(f"repair: limit of {limit} parts per run reached; the rest wait for the next run")
+                return
+            attempts += 1
+            if urls is None:
+                urls = provider_service_urls(workdir)
+            tmp = None
+            try:
+                path, tmp = recover_part(workdir, s, part, urls)
+                for p in missing:
+                    extra = parse_add_output(run_pin(["add", "--copies", "1", "--provider-id", p, "--network", NETWORK,
+                                                      "--skip-ipni-verification", "--metadata", "chainvault=snapshot", str(path)]))
+                    if extra["piece_cid"] != part["piece_cid"]:
+                        raise RuntimeError(f"re-upload produced piece {extra['piece_cid']}, expected {part['piece_cid']}")
+                    new = [c for c in extra["copies"] if int(c["provider_id"]) not in have]
+                    for c in new:
+                        c["repaired_at"] = now()
+                    part["copies"] += new
+                    have |= {int(c["provider_id"]) for c in new}
+                    log(f"repair: part {part['index']} of {s['name']} now has a copy on provider {p}")
+            except Exception as e:
+                log(f"repair: part {part['index']} of {s['name']} not repaired this run: {e}")
+            finally:
+                if tmp:
+                    shutil.rmtree(tmp, ignore_errors=True)
+            part["degraded"] = len([c for c in part["copies"] if not c.get("removed")]) < COPIES
+            s["degraded_parts"] = sum(1 for q in s["parts"] if q.get("degraded"))
+            save_state(workdir / "state.json", state)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir", default=os.environ.get("CV_WORKDIR", str(Path.home() / "chainvault")))
@@ -412,6 +503,7 @@ def main():
     if existing and existing["status"] in ("done", "pruned") and not a.force:
         log(f"latest {name} (height {height}) already archived")
         if not a.dry_run:
+            repair_degraded(workdir, state)
             prune_onchain(state)
             save_state(workdir / "state.json", state)
         prune_local(workdir, state)
@@ -430,6 +522,7 @@ def main():
         log(f"FAILED: {e}")
         return 1
     if not a.dry_run:
+        repair_degraded(workdir, state)
         prune_onchain(state)
         save_state(workdir / "state.json", state)
         prune_local(workdir, state)
