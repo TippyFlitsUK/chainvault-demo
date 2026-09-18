@@ -30,7 +30,7 @@ function spLink(f) {
   return `/api/params-manifest?cid=${f.cid}`;
 }
 function chip(f) {
-  const kind = f.name.endsWith('.vk') ? 'vk' : 'params';
+  const kind = f.name.endsWith('.vk') ? 'vk' : f.name.endsWith('.srs') ? 'srs' : 'params';
   const st = f.status || 'pending';
   const parts = f.parts || [];
   const title = `${f.name}\n${f.cid}\n${fmtBytes(f.size)} · ${st}${parts.length ? ` · ${parts.filter(p => p.piece_cid).length}/${parts.length} piece${parts.length === 1 ? '' : 's'}` : ''}${st === 'done' ? (parts.length === 1 ? '\nopens the piece on the storage provider' : '\nopens the manifest listing every piece on the storage provider') : ''}${f.error ? '\n' + f.error : ''}`;
@@ -71,13 +71,15 @@ function render(pr, proofs, prov) {
 
   const byCell = {};
   for (const f of files) { const k = `${familyOf(f.name)}|${f.sector_size}`; (byCell[k] = byCell[k] || []).push(f); }
-  const fams = [...FAMILIES]; if (files.some(f => familyOf(f.name) === 'other')) fams.push(['other', 'Other', '']);
+  const fams = [...FAMILIES];
+  const others = files.filter(f => familyOf(f.name) === 'other');  // e.g. the inner-product SRS: one file, no sector size
   const sectors = SECTORS.filter(s => files.some(f => f.sector_size === s));
   $('matrix').innerHTML = `<tr><th class="fam">proof family</th>${sectors.map(s => `<th class="sec">${sectorLabel(s)} sectors</th>`).join('')}</tr>` +
     fams.map(([key, label, sub]) => `<tr><td class="fam">${esc(label)}<small>${esc(sub || key)}</small></td>${sectors.map(s => {
       const cell = (byCell[`${key}|${s}`] || []).sort((a, b) => (a.name.endsWith('.vk') ? 1 : 0) - (b.name.endsWith('.vk') ? 1 : 0));
       return cell.length ? `<td class="cell">${cell.map(chip).join('<br>')}</td>` : `<td class="empty">–</td>`;
-    }).join('')}</tr>`).join('');
+    }).join('')}</tr>`).join('') +
+    (others.length ? `<tr><td class="fam">Aggregation SRS<small>inner-product SRS for aggregated proofs, all sector sizes</small></td><td class="cell" colspan="${sectors.length}">${others.map(chip).join(' ')}</td></tr>` : '');
 
   renderList();
 }
@@ -90,7 +92,7 @@ function renderList() {
   $('filelist').innerHTML = `<div class="filelist"><table><tr><th>file</th><th>sector</th><th>size</th><th>status</th><th>pieces</th><th>provider</th><th></th></tr>${rows.map(f => {
     const pv = (f.parts || [])[0]?.copies?.map(c => providersCache[c.provider_id]?.name || `provider ${c.provider_id}`).join(', ') || '–';
     const links = f.status === 'done' ? `<a href="${esc(spLink(f))}">on the provider</a> · <a href="/api/params-manifest?cid=${esc(f.cid)}">manifest</a> · <a href="/ipfs/${esc(f.cid)}">via vault</a>` : (f.error ? `<span class="bad">${esc(f.error).slice(0, 70)}</span>` : '');
-    return `<tr><td class="mono name" title="${esc(f.name)}&#10;${esc(f.cid)}">${esc(shortName(f.name))}</td><td>${sectorLabel(f.sector_size)}</td><td>${fmtBytes(f.size)}</td><td><span class="chip ${esc(f.status || 'pending')}">${esc(f.status || 'pending')}</span></td><td>${(f.parts || []).length || '–'}</td><td>${esc(pv)}</td><td>${links}</td></tr>`;
+    return `<tr><td class="mono name" title="${esc(f.name)}&#10;${esc(f.cid)}">${esc(shortName(f.name))}</td><td>${f.sector_size ? sectorLabel(f.sector_size) : 'all'}</td><td>${fmtBytes(f.size)}</td><td><span class="chip ${esc(f.status || 'pending')}">${esc(f.status || 'pending')}</span></td><td>${(f.parts || []).length || '–'}</td><td>${esc(pv)}</td><td>${links}</td></tr>`;
   }).join('')}</table></div>`;
 }
 

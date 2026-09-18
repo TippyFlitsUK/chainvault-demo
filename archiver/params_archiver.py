@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import archiver as core  # env file, filecoin-pin wrapper, split, log
 
 MANIFEST_URL = os.environ.get("CV_PARAMS_MANIFEST_URL", "https://raw.githubusercontent.com/filecoin-project/filecoin-ffi/master/parameters.json")
+# the inner-product SRS used for aggregated proofs is published in its own manifest, same shape, sector_size 0
+SRS_MANIFEST_URL = os.environ.get("CV_PARAMS_SRS_MANIFEST_URL", "https://raw.githubusercontent.com/filecoin-project/filecoin-ffi/master/srs-inner-product.json")
 MIRROR = os.environ.get("CV_PARAMS_MIRROR", "https://filecoin-proofs.chainsafe.dev/ipfs/").rstrip("/") + "/"
 UA = core.UA
 PARAMS_PROVIDERS = [p for p in os.environ.get("CV_PARAMS_PROVIDERS", "9").split(",") if p]
@@ -117,7 +119,10 @@ def main():
         core.log("another params run holds the lock; exiting"); return 0
     spath = workdir / "params_state.json"
     state = load_state(spath)
-    manifest = core.http_json(MANIFEST_URL)
+    manifest = dict(core.http_json(MANIFEST_URL))
+    if SRS_MANIFEST_URL:
+        manifest.update(core.http_json(SRS_MANIFEST_URL))
+        state["srs_manifest_url"] = SRS_MANIFEST_URL
     state["manifest_entries"] = len(manifest)
     pending = {n: m for n, m in manifest.items() if state["files"].get(n, {}).get("status") != "done" and (not a.only or n == a.only)}
     for n, m in pending.items():
