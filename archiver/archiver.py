@@ -103,8 +103,18 @@ def download(url, dest, expected_size):
         log(f"already downloaded {dest.name}")
         return
     log(f"downloading {url} -> {dest}")
-    cmd = ["curl", "-sS", "-L", "-A", UA["User-Agent"], "--retry", "5", "--retry-delay", "10", "-C", "-", "-o", str(dest), url]
-    subprocess.run(cmd, check=True)
+    # HTTP/1.1 on purpose: the mirror's HTTP/2 streams reset partway through multi-hour transfers (curl exit 92).
+    # Each attempt is a fresh curl so -C - resumes from whatever landed; the mirror serves byte ranges.
+    cmd = ["curl", "-sS", "-L", "--http1.1", "-A", UA["User-Agent"], "--retry", "10", "--retry-delay", "10", "--retry-all-errors", "-C", "-", "-o", str(dest), url]
+    for attempt in range(1, 11):
+        r = subprocess.run(cmd)
+        if r.returncode == 0:
+            break
+        have = dest.stat().st_size if dest.exists() else 0
+        log(f"download attempt {attempt} failed (curl exit {r.returncode}) at {have} of {expected_size} bytes; resuming")
+        time.sleep(15)
+    else:
+        raise RuntimeError(f"download failed after 10 attempts: {url}")
     if dest.stat().st_size != expected_size:
         raise RuntimeError(f"size mismatch after download: {dest.stat().st_size} != {expected_size}")
 
