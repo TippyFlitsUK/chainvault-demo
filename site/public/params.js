@@ -79,7 +79,7 @@ function render(pr, proofs, prov) {
       const cell = (byCell[`${key}|${s}`] || []).sort((a, b) => (a.name.endsWith('.vk') ? 1 : 0) - (b.name.endsWith('.vk') ? 1 : 0));
       return cell.length ? `<td class="cell">${cell.map(chip).join('<br>')}</td>` : `<td class="empty">–</td>`;
     }).join('')}</tr>`).join('') +
-    (others.length ? `<tr><td class="fam">Aggregation SRS<small>inner-product SRS for aggregated proofs, all sector sizes</small></td><td class="cell span" colspan="${sectors.length}">${others.map(chip).join(' ')}<span class="note">one file, not tied to a sector size: every column above uses it</span></td></tr>` : '');
+    (others.length ? `<tr><td class="fam">Aggregation SRS<small>all sector sizes</small></td><td class="cell span" colspan="${sectors.length}">${others.map(chip).join(' ')}</td></tr>` : '');
 
   renderList();
 }

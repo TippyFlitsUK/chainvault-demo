@@ -44,7 +44,7 @@ a.chip:hover { color:var(--fg); border-color:var(--accent2); text-decoration:non
 .matrix td.fam { color:var(--fg); font-weight:600 } .matrix td.fam small { display:block; color:var(--muted); font-weight:400; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; margin-top:2px }
 .matrix td.cell { text-align:center } .matrix td.cell .chip { margin:2px 0; width:150px; justify-content:flex-start; box-sizing:border-box } .matrix td.cell .chip b { font-weight:600; width:56px; text-align:left } .matrix td.cell .chip span { color:var(--muted); margin-left:auto }
 .matrix td.empty { color:var(--dot); text-align:center }
-.matrix td.cell.span { text-align:left; padding-left:34px } .matrix td.cell.span .note { color:var(--muted); margin-left:12px }
+.matrix td.cell.span .chip { width:100% }
 .filelist table { width:100%; font-size:12.5px } .filelist td.mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px } .filelist td { white-space:nowrap } .filelist td.mono.name { max-width:520px; overflow:hidden; text-overflow:ellipsis }
 .intro { margin:12px 0 14px; display:grid; grid-template-columns:1fr 1fr; gap:12px }
 .intro .card p { margin:0; color:var(--fg2); font-size:14.5px; line-height:1.55 }
