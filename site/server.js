@@ -182,7 +182,7 @@ function serveIpni(req, res, cid, wantProvider) {
     const part = { index: 0, size: entry.size, copies: entry.sources.map((u, i) => ({ provider_id: -1 - i, url: u })) };
     return streamParts(req, res, [part], cid, { 'content-type': entry.type }, (p) => p.copies.map((c) => ({ provider_id: c.provider_id, url: `${c.url}/ipfs/${cid}` })), wantProvider);
   };
-  if (cache[cid]) return go(cache[cid]);
+  if (Object.hasOwn(cache, cid)) return go(cache[cid]);
   ipniLookup(cid, (err, urls) => {
     if (err || !urls.length) { res.writeHead(404, { 'content-type': 'text/plain', ...CORS }); return res.end('no Filecoin provider found for this CID in IPNI\n'); }
     const tryProbe = (k) => {
@@ -241,7 +241,7 @@ http.createServer((req, res) => {
     return sendJson(res, 200, readJson(path.join(DATA, 'params_manifests', `${cid}.manifest.json`), { error: 'not found' }));
   }
   if ((url.pathname.startsWith('/ipfs/') || url.pathname.startsWith('/snapshot/')) && req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
-  if (url.pathname.startsWith('/ipfs/')) { const cid = url.pathname.slice(6).split('/')[0]; if (!/^[A-Za-z0-9]{10,}$/.test(cid)) { res.writeHead(400); return res.end('bad cid'); } return serveParam(req, res, cid, (url.searchParams.get('provider') || '').replace(/[^A-Za-z0-9.\-]/g, '') || null); }
+  if (url.pathname.startsWith('/ipfs/')) { const cid = url.pathname.slice(6).split('/')[0]; if (!/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})$/.test(cid)) { res.writeHead(400); return res.end('bad cid'); } return serveParam(req, res, cid, (url.searchParams.get('provider') || '').replace(/[^A-Za-z0-9.\-]/g, '') || null); }
   if (url.pathname.startsWith('/snapshot/')) return serveSnapshot(req, res, url.pathname.slice(10).split('/')[0]);
   if (url.pathname === '/api/rehydrate/start' && req.method === 'POST') return startRehydrate(req, res);
   if (url.pathname === '/api/rehydrate/stream') return streamLog(req, res);
@@ -251,4 +251,4 @@ http.createServer((req, res) => {
   if (!file.startsWith(PUBLIC) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('not found'); }
   res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
-}).listen(PORT, () => console.log(`chainvault demo on :${PORT}, data ${DATA}`));
+}).listen(PORT, '127.0.0.1', () => console.log(`chainvault demo on :${PORT}, data ${DATA}`));
